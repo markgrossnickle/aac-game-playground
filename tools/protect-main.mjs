@@ -25,7 +25,7 @@ if (!repo || repo === "OWNER/REPO") {
 }
 
 // Job names from .github/workflows/ci.yml.
-const CHECKS = ["Lint games and config", "Build and smoke test"];
+const CHECKS = ["Checks and build"];
 const body = {
   name: "Protect main",
   target: "branch",

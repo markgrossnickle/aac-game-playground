@@ -17,7 +17,7 @@ Windows and macOS drop `--with-deps`.
 
 Then type `/new-game` and describe the game in a sentence or two. Claude will
 ask at most three questions, scaffold the folder, build the game, run the same
-checks CI runs, and open the pull request. Afterwards `/check-game <id>` re-runs
+checks a reviewer expects (lint, build, headless smoke), and open the pull request. Afterwards `/check-game <id>` re-runs
 the review on your machine whenever you change something.
 
 Good first ideas are small: one screen, one action, one kind of feedback.
@@ -48,12 +48,11 @@ caching and the hub card because the SDK does.
 
 ## What happens to your PR
 
-CI builds it, lints it against the house rules, loads it headless at a phone
-and a tablet size, checks it plays offline, and an automated reviewer posts
-comments against `docs/REVIEW-CHECKLIST.md` (for a fork, a maintainer starts
-it with a `/claude-review` comment). A maintainer plays it and merges.
-Merging deploys; every phone, tablet and browser with the bundle open picks the
-game up the next time it comes to the front.
+CI lints it against the house rules and builds it (one quick job). The
+browser tests are yours: run them before opening the PR and paste the result.
+A maintainer reviews against `docs/REVIEW-CHECKLIST.md` (and may ask Claude to
+as well), plays it, merges and deploys; every phone, tablet and browser with
+the bundle open picks the game up the next time it comes to the front.
 
 ## Things that surprise people
 

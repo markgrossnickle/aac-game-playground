@@ -1,7 +1,8 @@
 # Review checklist
 
 What a game PR must satisfy to merge. CI enforces the first block by machine;
-the automated review and the human maintainer walk the rest. "Must" items block
+the author runs the second locally and reports it in the PR; the maintainer
+(optionally with a `/claude-review` comment) walks the rest. "Must" items block
 the merge. "Should" items are comments.
 
 ## Enforced by CI (must)
@@ -14,6 +15,12 @@ the merge. "Should" items are comments.
 - `tools/check-pr-scope.mjs` passes: only `html/games/<id>/` and
   `docs/games/<id>.md` changed, one game per PR.
 - `npm run build` is green (type check included).
+
+## Run locally by the author, results in the PR (must)
+
+Browsers do not run in Actions (`docs/CI-BUDGET.md`). The maintainer re-runs
+these on a checkout when in doubt.
+
 - `npm run smoke` is green for the game: loads at 390x844 and 1280x800 with no
   console errors, no failed requests, no broken images, no horizontal overflow,
   a Back link in the corner, caches itself and then plays offline, shows the
@@ -58,7 +65,8 @@ the merge. "Should" items are comments.
     cover the obvious alternatives; no sentences.
 15. **Gameplay test.** `tests/aac.spec.ts` proves the words play the game:
     start, play, replay, ignored words, duplicates, late words, disconnects,
-    sharing off, and touch. CI also runs the framework's AAC wiring checks.
+    sharing off, and touch, run locally. The local smoke suite also runs the
+    framework's AAC wiring checks for every AAC game.
 16. **Nothing kept.** No logging or storing of what the child said.
 
 ## Should (comments, not blockers)

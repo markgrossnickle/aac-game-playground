@@ -9,7 +9,8 @@
 //   node tools/check-hosting.mjs --project web    # uses VERCEL_PROJECT_ID
 //   node tools/check-hosting.mjs --project apk    # uses VERCEL_APK_PROJECT_ID
 //
-// Needs VERCEL_TOKEN, VERCEL_ORG_ID, the project id, and GITHUB_REPOSITORY.
+// Needs the project's token (VERCEL_TOKEN for web, VERCEL_APK_TOKEN for apk; ideally
+// each scoped to that one project), VERCEL_ORG_ID, the project id, GITHUB_REPOSITORY.
 //
 // Checks, in order:
 //   1. bundle.config.json is filled in for this bundle: no template
@@ -45,9 +46,13 @@ function fail(msg) {
 
 const cfg = JSON.parse(readFileSync(join(root, "bundle.config.json"), "utf8"));
 const repo = process.env.GITHUB_REPOSITORY;
-const token = process.env.VERCEL_TOKEN;
+let token = process.env.VERCEL_TOKEN;
 const orgId = process.env.VERCEL_ORG_ID;
 const projectId = which === "apk" ? process.env.VERCEL_APK_PROJECT_ID : process.env.VERCEL_PROJECT_ID;
+// Each project has its own project-scoped token; the APK one falls back to the
+// shared name for bundles that still use a single team token.
+const apkToken = process.env.VERCEL_APK_TOKEN || process.env.VERCEL_TOKEN;
+if (which === "apk") token = apkToken;
 const url = which === "apk" ? cfg.apkUrl : cfg.webUrl;
 
 // 1. Config is this bundle's own.
@@ -73,13 +78,26 @@ if (!token || !orgId || !projectId) {
   fail(`VERCEL_TOKEN, VERCEL_ORG_ID and ${which === "apk" ? "VERCEL_APK_PROJECT_ID" : "VERCEL_PROJECT_ID"} must be set.`);
 }
 
-const qs = orgId.startsWith("team_") ? `?teamId=${encodeURIComponent(orgId)}` : `?slug=${encodeURIComponent(orgId)}`;
+// Project-scoped tokens (recommended: one token per project) must NOT send a
+// team; team tokens must. Try without, fall back to the team on 403/404.
+const teamQs = orgId.startsWith("team_") ? `teamId=${encodeURIComponent(orgId)}` : `slug=${encodeURIComponent(orgId)}`;
+let useTeam = false;
 async function api(path, init = {}) {
-  const sep = path.includes("?") ? "&" : "?";
-  const res = await fetch(`https://api.vercel.com${path}${qs.replace("?", sep)}`, {
-    ...init,
-    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", ...(init.headers || {}) },
-  });
+  const go = (withTeam) => {
+    const sep = path.includes("?") ? "&" : "?";
+    return fetch(`https://api.vercel.com${path}${withTeam ? sep + teamQs : ""}`, {
+      ...init,
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", ...(init.headers || {}) },
+    });
+  };
+  let res = await go(useTeam);
+  if ((res.status === 403 || res.status === 404) && !useTeam) {
+    const retry = await go(true);
+    if (retry.ok) {
+      useTeam = true;
+      res = retry;
+    }
+  }
   const text = await res.text();
   const body = text ? JSON.parse(text) : {};
   if (!res.ok) fail(`Vercel API ${init.method || "GET"} ${path} answered ${res.status}: ${body.error?.message || text.slice(0, 200)}`);

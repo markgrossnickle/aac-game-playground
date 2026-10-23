@@ -103,13 +103,17 @@ the first time it is played online, and kept current, with no choices to make.
    game headless and muted at 390x844 and 1280x800, checks for console errors,
    failed requests, broken images, overflow, the Back link, offline play after
    caching, and the update banner.
-4. CI runs the same on the PR, plus `check-pr-scope.mjs` (only the game folder
-   changed) and a Claude review against `docs/REVIEW-CHECKLIST.md`.
-5. A maintainer merges (main is protected: PRs only, review, CI). CI runs on
-   `main`; when it passes, `deploy.yml` checks out that commit, proves the
-   hosting is this bundle's own (`check-hosting.mjs`), rebuilds, requires the
-   same buildId CI recorded, deploys that build and verifies it live. Devices
-   pick it up on next focus.
+4. On the PR, CI runs one quick job: config, `check-games`, `check-pr-scope`
+   (only the game folder changed) and the build. Browsers never run in Actions
+   (`docs/CI-BUDGET.md`); the PR states the local smoke results. A maintainer
+   can ask for a Claude review against `docs/REVIEW-CHECKLIST.md` with a
+   `/claude-review` comment.
+5. A maintainer merges (main is protected: PRs only, review, CI), runs the
+   local smoke on `main`, and starts `deploy.yml` by hand. It builds without
+   secrets, then proves the hosting is this bundle's own (`check-hosting.mjs`),
+   uploads exactly that build with a token scoped to the one web project
+   (`vercel-upload.mjs`), and verifies it live. Devices pick it up on next
+   focus.
 
 ## 7. Spinoffs
 

@@ -21,13 +21,13 @@ own folder.
    the SDK (`html/src/sdk/`) for audio, storage, sizing. No packages, no network.
 5. **Check it**: `node tools/check-games.mjs <id>` and
    `cd html && npm run build && npm run smoke -- --grep <id>`. Both must pass.
-   The smoke test runs headless and muted; please do the same.
+   The smoke test runs headless and muted. These local runs ARE the gate: CI
+   does not run browsers (Actions minutes are scarce, see `docs/CI-BUDGET.md`).
 6. **Open a PR** from your fork's `game/<id>` branch to `main`, with the
-   template filled in. CI runs the same checks. The automated review runs by
-   itself for branches of this repository; for a fork, GitHub keeps secrets
-   away from the workflow, so a maintainer starts it by commenting
-   `/claude-review`. A maintainer plays the game, approves and merges. Merging
-   deploys, after CI passes again on `main`.
+   template filled in, including which local checks you ran and their results.
+   CI runs one quick job (lint, scope, build). A maintainer reviews, may ask
+   for a Claude review by commenting `/claude-review` (works for forks too),
+   plays the game, merges, and starts a deploy.
 
 Keep your fork current with `git fetch upstream && git rebase upstream/main`.
 

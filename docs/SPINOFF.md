@@ -84,6 +84,9 @@ beforehand with `GITHUB_REPOSITORY=<owner>/<repo> VERCEL_TOKEN=... VERCEL_ORG_ID
 
 ## 4. GitHub secrets and settings
 
+First trim the workflows to the Actions budget rules in `docs/CI-BUDGET.md`
+(no Playwright in Actions, manual deploys, no per-PR Claude review).
+
 Repository > Settings > Secrets and variables > Actions:
 
 | Secret | Used by |

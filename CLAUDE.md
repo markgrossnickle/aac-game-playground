@@ -38,6 +38,10 @@ cache. `docs/ARCHITECTURE.md` explains the whole flow.
   real URL (`tools/verify-live.sh`), never from a workflow's green badge. Only
   native changes need the shim workflow, and a shim only installs if
   `versionCode` went up (the workflow bumps it).
+- **GitHub Actions minutes are scarce: `docs/CI-BUDGET.md`.** Local checks are the
+  gate. No e2e, matrices, crons, macOS runners or per-PR LLM jobs in Actions; at
+  most one cheap ubuntu build + unit job on PRs. Trim this template's workflows
+  at spin-off as that doc says.
 - **Branding lives in `bundle.config.json` only.** The framework must not
   contain a client name; `tools/sync-config.mjs --check` and CI look for leaks.
 - **Docs: no em dashes; use "-" or ":".** Per-game docs go in

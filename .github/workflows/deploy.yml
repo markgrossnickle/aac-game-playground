@@ -1,14 +1,17 @@
 name: Deploy
 
-# Runs only after CI succeeded on a push to main, and deploys THAT commit:
-#   1. check out the exact commit CI tested (workflow_run.head_sha),
+# Runs only after CI succeeded on a push to main, and ships the exact files
+# CI built and tested (the "site" artifact of that CI run):
+#   1. check out that commit for the hosting check and verify scripts only
+#      (no npm install, no build: no repository code runs next to the token),
 #   2. prove the hosting is this bundle's own, fresh project (tools/check-hosting.mjs),
-#   3. build with `vercel build` and require the same buildId CI produced,
-#   4. upload exactly that build output (`vercel deploy --prebuilt`),
-#   5. verify the live site serves that buildId.
+#   3. upload CI's "site" artifact as a production deployment (tools/vercel-upload.mjs),
+#   4. verify the live site serves that buildId.
 # Merging a PR is the only way to deploy; there is no manual trigger.
 #
-# Secrets (docs/SPINOFF.md): VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID.
+# Secrets (docs/SPINOFF.md):
+#   environment "production": VERCEL_TOKEN, a token scoped to the web project only;
+#   repository: VERCEL_ORG_ID, VERCEL_PROJECT_ID (identifiers, not credentials).
 on:
   workflow_run:
     workflows: [CI]
@@ -39,9 +42,9 @@ jobs:
         run: echo "ok=$OK" >> "$GITHUB_OUTPUT"
       - name: Not configured
         if: steps.secrets.outputs.ok != 'true'
-        run: echo "::notice::VERCEL_TOKEN / VERCEL_ORG_ID / VERCEL_PROJECT_ID are not set; nothing deployed. See docs/SPINOFF.md."
+        run: echo "::notice::VERCEL_TOKEN (production environment) / VERCEL_ORG_ID / VERCEL_PROJECT_ID are not set; nothing deployed. See docs/SPINOFF.md."
 
-      - name: Check out the commit CI tested
+      - name: Check out the commit CI tested (scripts only)
         if: steps.secrets.outputs.ok == 'true'
         uses: actions/checkout@v4
         with:
@@ -59,38 +62,25 @@ jobs:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: node tools/check-hosting.mjs --project web
 
-      - name: Fetch the build id CI recorded
+      - name: Fetch the files CI built and tested
         if: steps.secrets.outputs.ok == 'true'
         uses: actions/download-artifact@v4
         with:
-          name: build-id
-          path: ci-build
+          name: site
+          path: site
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ github.token }}
 
-      - name: Build exactly what CI built
+      - name: Upload exactly those files
         if: steps.secrets.outputs.ok == 'true'
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: |
-          npm i -g vercel@latest
-          vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
-          vercel build --prod --token="$VERCEL_TOKEN"
-          CI_ID=$(node -p 'JSON.parse(require("fs").readFileSync("ci-build/games-manifest.json","utf8")).buildId')
-          OUT_ID=$(node -p 'JSON.parse(require("fs").readFileSync(".vercel/output/static/games-manifest.json","utf8")).buildId')
-          echo "CI buildId $CI_ID, deploy buildId $OUT_ID"
-          [ "$CI_ID" = "$OUT_ID" ] || { echo "::error::the deploy build differs from the build CI tested"; exit 1; }
-          echo "BUILD_ID=$OUT_ID" >> "$GITHUB_ENV"
-
-      - name: Deploy that build
-        if: steps.secrets.outputs.ok == 'true'
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-        run: vercel deploy --prebuilt --prod --yes --token="$VERCEL_TOKEN"
+          BUILD_ID=$(node -p 'JSON.parse(require("fs").readFileSync("site/games-manifest.json","utf8")).buildId')
+          echo "BUILD_ID=$BUILD_ID" >> "$GITHUB_ENV"
+          echo "Deploying build $BUILD_ID"
+          node tools/vercel-upload.mjs --dir site --project-id "${{ secrets.VERCEL_PROJECT_ID }}"
 
       - name: Verify at the real URL
         if: steps.secrets.outputs.ok == 'true'

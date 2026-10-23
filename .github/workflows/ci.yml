@@ -61,25 +61,29 @@ jobs:
       - run: npm ci
       - name: Type check and build (exactly what the deploy builds)
         run: npm run build
-      - name: Record the build id
-        run: node -p 'JSON.parse(require("fs").readFileSync("dist/games-manifest.json","utf8")).buildId'
-      # deploy.yml rebuilds this exact commit and refuses to ship unless its
-      # buildId matches this one, so what goes live is what was tested here.
-      - name: Keep the build id for the deploy
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-id
-          path: html/dist/games-manifest.json
-          retention-days: 7
-      - name: Scaffold a throwaway game so the pipeline is exercised even with no games committed
-        if: ${{ !contains(github.head_ref, 'game/') }}
-        run: |
-          node scripts/new-game.mjs ci-smoke "CI Smoke" --author ci
-          npm run build
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
-      - name: Smoke test (headless, muted, offline round trip)
+      - name: Smoke test the real build (headless, muted, offline round trip)
         run: npm run smoke
+      # deploy.yml ships this exact folder, so what goes live is what was tested here.
+      - name: Package the tested build for deployment
+        run: node ../tools/make-site.mjs ../site
+      - name: Keep the tested build for the deploy
+        uses: actions/upload-artifact@v4
+        with:
+          name: site
+          path: site
+          include-hidden-files: false
+          retention-days: 7
+      - name: With no games committed, also exercise the pipeline on a throwaway game
+        run: |
+          if [ -n "$(find games -mindepth 1 -maxdepth 1 -type d ! -name '.*' -print -quit)" ]; then
+            echo "games present; already tested above"; exit 0
+          fi
+          node scripts/new-game.mjs ci-smoke "CI Smoke" --author ci
+          node scripts/new-game.mjs ci-smoke-aac "CI Smoke AAC" --author ci --aac 2>/dev/null || true
+          npm run build
+          npm run smoke
       - name: Upload Playwright report on failure
         if: failure()
         uses: actions/upload-artifact@v4

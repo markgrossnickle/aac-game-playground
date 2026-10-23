@@ -106,9 +106,10 @@ the first time it is played online, and kept current, with no choices to make.
 4. CI runs the same on the PR, plus `check-pr-scope.mjs` (only the game folder
    changed) and a Claude review against `docs/REVIEW-CHECKLIST.md`.
 5. A maintainer merges (main is protected: PRs only, review, CI). CI runs on
-   `main`; when it passes, `deploy.yml` checks out that commit, proves the
-   hosting is this bundle's own (`check-hosting.mjs`), rebuilds, requires the
-   same buildId CI recorded, deploys that build and verifies it live. Devices
+   `main`, smoke-testing the real build and saving it as the `site` artifact.
+   When CI passes, `deploy.yml` proves the hosting is this bundle's own
+   (`check-hosting.mjs`), uploads exactly that artifact with a token scoped to
+   the one web project (`vercel-upload.mjs`), and verifies it live. Devices
    pick it up on next focus.
 
 ## 7. Spinoffs

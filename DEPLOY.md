@@ -14,11 +14,12 @@ Authoritative. If another file disagrees, this one wins. No em dashes in docs.
    permissions, Capacitor plugins or versions, `appId`, `webUrl`) need a new shim,
    and a shim installs only if `versionCode` went UP (the workflow bumps it).
 4. Merging to `main` runs CI; only when CI passes does
-   `.github/workflows/deploy.yml` run. It checks out the commit CI tested,
-   proves the hosting is this bundle's own fresh project
-   (`tools/check-hosting.mjs`), builds with `vercel build`, refuses to continue
-   unless the buildId equals CI's, uploads that build (`--prebuilt`), and
-   `tools/verify-live.sh` confirms the live `buildId`.
+   `.github/workflows/deploy.yml` run. It proves the hosting is this bundle's
+   own fresh project (`tools/check-hosting.mjs`), uploads the exact files CI
+   built and smoke-tested (the `site` artifact, via `tools/vercel-upload.mjs`;
+   no build and no repository code run while the token is loaded), and
+   `tools/verify-live.sh` confirms the live `buildId`. Each Vercel project has
+   its own project-scoped token in the `production` environment.
 5. Every open page re-reads `games-manifest.json` on focus. The hub reloads when
    it changed, cached games refresh in the background, a game in play shows a
    tap-to-update banner. Details: `docs/ARCHITECTURE.md`.

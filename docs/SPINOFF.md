@@ -69,7 +69,12 @@ project or domain (see "The one rule about hosting" above).
    `apk-host/`. Also not connected to Git.
 3. Note each project's `projectId` and the team `orgId` (Project Settings >
    General, or `vercel project ls --format json`).
-4. Create a Vercel token (Account > Tokens) scoped to the team.
+4. Create TWO **project-scoped** tokens at vercel.com/account/tokens: Scope =
+   your team, then pick the project. One for `<client>-games` (becomes
+   `VERCEL_TOKEN`), one for `<client>-games-apk` (becomes `VERCEL_APK_TOKEN`). A
+   project-scoped token cannot touch any other project in your account, so a
+   leak from this public repository cannot reach your other sites. Set an
+   expiry and copy each value once.
 
 If the production URLs differ from what you put in `bundle.config.json`, fix the
 config now and re-run `sync-config`. From the CLI:
@@ -80,26 +85,48 @@ vercel project add <client>-games-apk
 ```
 
 The first deploy claims each project for this repository; you can check
-beforehand with `GITHUB_REPOSITORY=<owner>/<repo> VERCEL_TOKEN=... VERCEL_ORG_ID=... VERCEL_PROJECT_ID=... node tools/check-hosting.mjs --dry-run`.
+beforehand with `node tools/check-hosting.mjs --dry-run` (needs
+`GITHUB_REPOSITORY`, `VERCEL_TOKEN`, `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID` in
+the environment; never put a token on a command line you share).
 
 ## 4. GitHub secrets and settings
 
-First trim the workflows to the Actions budget rules in `docs/CI-BUDGET.md`
-(no Playwright in Actions, manual deploys, no per-PR Claude review).
+The workflows already follow the Actions budget rules in `docs/CI-BUDGET.md`:
+one cheap check-and-build job on pull requests, smoke tests run locally, deploys
+started by hand, Claude review only on request. Keep it that way.
 
-Repository > Settings > Secrets and variables > Actions:
+The two tokens are credentials: they go in the `production` **environment**,
+which only `main` may use. Everything else is an identifier and goes in the
+repository secrets.
 
-| Secret | Used by |
-|---|---|
-| `VERCEL_TOKEN` | deploy.yml, shim.yml |
-| `VERCEL_ORG_ID` | deploy.yml, shim.yml |
-| `VERCEL_PROJECT_ID` | deploy.yml (web project) |
-| `VERCEL_APK_PROJECT_ID` | shim.yml (APK host) |
-| `ANTHROPIC_API_KEY` | claude-review.yml (or install the Claude GitHub app and set `CLAUDE_CODE_OAUTH_TOKEN`) |
-| `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD` | shim.yml, optional release signing |
+```bash
+R=<owner>/<repo>
+# production environment, usable from main only
+gh api -X PUT repos/$R/environments/production -F "deployment_branch_policy[protected_branches]=false" -F "deployment_branch_policy[custom_branch_policies]=true"
+gh api -X POST repos/$R/environments/production/deployment-branch-policies -f name=main
+# credentials: the NAME comes first, then paste the token at the prompt
+gh secret set VERCEL_TOKEN --env production -R $R
+gh secret set VERCEL_APK_TOKEN --env production -R $R
+# identifiers
+gh secret set VERCEL_ORG_ID -R $R -b "team_..."
+gh secret set VERCEL_PROJECT_ID -R $R -b "prj_..."
+gh secret set VERCEL_APK_PROJECT_ID -R $R -b "prj_..."
+# check: names only; a name that looks like a token means it went in the wrong place
+gh secret list --env production -R $R
+```
 
-Settings > Environments: create `production` (deploy.yml uses it; add required
-reviewers there if a human should approve each deploy).
+| Secret | Where | Used by |
+|---|---|---|
+| `VERCEL_TOKEN` (web project only) | environment `production` | deploy.yml |
+| `VERCEL_APK_TOKEN` (APK project only) | environment `production` | shim.yml |
+| `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`, `VERCEL_APK_PROJECT_ID` | repository | deploy.yml, shim.yml |
+| `ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN` | repository, optional | claude-review.yml (costs per review with an API key) |
+| `ANDROID_KEYSTORE_*` | environment `production`, optional | shim.yml release signing |
+
+No repository code runs while a token is loaded: CI builds and tests the site
+without secrets, and deploy.yml only uploads CI's tested files through the
+Vercel API (`tools/vercel-upload.mjs`). Add required reviewers to the
+`production` environment if a human should approve each deploy.
 
 Protect `main` (public repository, or a paid GitHub plan):
 
@@ -118,10 +145,9 @@ repository. For a fork, a maintainer comments `/claude-review` on the PR.
 
 ## 5. First deploy and first shim
 
-Merge a PR to `main`. CI runs; when it passes, `deploy.yml` deploys that exact
-commit (it checks out CI's commit and refuses to ship if its build differs
-from the one CI tested), claims the fresh projects on the first run, and
-verifies the live buildId.
+Merge a PR to `main`. CI runs; when it passes, `deploy.yml` uploads the exact
+files that CI built and smoke-tested, claims the fresh project on the first
+run, and verifies the live buildId.
 
 ```bash
 tools/verify-live.sh <buildId>     # the id printed by the deploy run

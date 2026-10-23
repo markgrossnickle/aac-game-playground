@@ -30,3 +30,6 @@ apk-host/.vercel/
 # Claude Code session worktrees
 .claude/worktrees/
 .worktrees/
+
+# Deploy package made by tools/make-site.mjs in CI
+site/

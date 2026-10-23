@@ -6,7 +6,9 @@ name: Shim APK
 # permissions, Capacitor plugins or versions, bundle.config.json appId/webUrl.
 # Content changes never need it; the installed app updates itself.
 #
-# Secrets (docs/SPINOFF.md): VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_APK_PROJECT_ID.
+# Secrets (docs/SPINOFF.md): environment "production": VERCEL_APK_TOKEN, a token
+# scoped to the APK host project only; repository: VERCEL_ORG_ID, VERCEL_APK_PROJECT_ID.
+# The versionCode bump arrives as a pull request (main is protected).
 # Optional release signing: ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD,
 # ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD. Without them a debug-signed APK is
 # built (fine for side-loading; the same key must be used for every update).
@@ -20,6 +22,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 concurrency:
   group: shim
@@ -28,6 +31,7 @@ concurrency:
 jobs:
   shim:
     runs-on: ubuntu-latest
+    environment: production
     steps:
       - uses: actions/checkout@v4
         with:
@@ -118,13 +122,13 @@ jobs:
       - name: Check APK host secrets
         id: secrets
         env:
-          OK: ${{ secrets.VERCEL_TOKEN != '' && secrets.VERCEL_ORG_ID != '' && secrets.VERCEL_APK_PROJECT_ID != '' }}
+          OK: ${{ secrets.VERCEL_APK_TOKEN != '' && secrets.VERCEL_ORG_ID != '' && secrets.VERCEL_APK_PROJECT_ID != '' }}
         run: echo "ok=$OK" >> "$GITHUB_OUTPUT"
 
       - name: APK host is this bundle's own fresh project
         if: ${{ inputs.publish && steps.secrets.outputs.ok == 'true' }}
         env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_APK_TOKEN: ${{ secrets.VERCEL_APK_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_APK_PROJECT_ID: ${{ secrets.VERCEL_APK_PROJECT_ID }}
         run: node tools/check-hosting.mjs --project apk
@@ -132,15 +136,12 @@ jobs:
       - name: Publish to the APK host project
         if: ${{ inputs.publish && steps.secrets.outputs.ok == 'true' }}
         env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_APK_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_APK_PROJECT_ID }}
         working-directory: apk-host
         run: |
           cp ../games.apk games.apk
-          npm i -g vercel@latest
-          vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
-          vercel deploy --prod --yes --token="$VERCEL_TOKEN"
+          node ../tools/vercel-upload.mjs --dir . --project-id "${{ secrets.VERCEL_APK_PROJECT_ID }}"
           rm games.apk
           APK_URL=$(node -p 'JSON.parse(require("fs").readFileSync("../bundle.config.json","utf8")).apkUrl')
           WEB_URL=$(node -p 'JSON.parse(require("fs").readFileSync("../bundle.config.json","utf8")).webUrl')
@@ -153,14 +154,20 @@ jobs:
           CL2=$(curl -sIL "$WEB_URL/games.apk?cb=x" | grep -i '^content-length' | tail -1 | grep -oE '[0-9]+' || true)
           [ "$CL2" = "$SIZE" ] || echo "::warning::$WEB_URL/games.apk redirect resolves to '$CL2' bytes; check vercel.json redirects and that the web deploy is live"
 
-      - name: Commit the versionCode bump
+      - name: Open a PR with the versionCode bump (main is protected)
         if: ${{ inputs.publish && steps.secrets.outputs.ok == 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
+          VC=${{ steps.bump.outputs.versionCode }}
+          BRANCH="shim/version-code-$VC"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git switch -c "$BRANCH"
           git add android/app/build.gradle
-          git commit -m "shim: bump versionCode to ${{ steps.bump.outputs.versionCode }}"
-          git push origin HEAD:main
+          git commit -m "shim: bump versionCode to $VC (published)"
+          git push origin "$BRANCH"
+          gh pr create --base main --head "$BRANCH" --title "shim: versionCode $VC" --body "The shim with versionCode $VC is live at /games.apk. Merge so the next shim build counts up from here."
 
       - name: Not published
         if: ${{ !(inputs.publish && steps.secrets.outputs.ok == 'true') }}

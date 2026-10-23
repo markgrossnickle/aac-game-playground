@@ -65,7 +65,8 @@ these on a checkout when in doubt.
     cover the obvious alternatives; no sentences.
 15. **Gameplay test.** `tests/aac.spec.ts` proves the words play the game:
     start, play, replay, ignored words, duplicates, late words, disconnects,
-    sharing off, and touch. CI also runs the framework's AAC wiring checks.
+    sharing off, and touch, run locally. The local smoke suite also runs the
+    framework's AAC wiring checks for every AAC game.
 16. **Nothing kept.** No logging or storing of what the child said.
 
 ## Should (comments, not blockers)

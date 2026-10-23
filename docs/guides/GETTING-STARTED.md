@@ -17,7 +17,7 @@ Windows and macOS drop `--with-deps`.
 
 Then type `/new-game` and describe the game in a sentence or two. Claude will
 ask at most three questions, scaffold the folder, build the game, run the same
-checks CI runs, and open the pull request. Afterwards `/check-game <id>` re-runs
+checks a reviewer expects (lint, build, headless smoke), and open the pull request. Afterwards `/check-game <id>` re-runs
 the review on your machine whenever you change something.
 
 Good first ideas are small: one screen, one action, one kind of feedback.

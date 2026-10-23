@@ -83,4 +83,5 @@ node tools/check-games.mjs <id>                       # rules above
 cd html && npm run build && npm run smoke -- --grep <id>   # loads, offline, update banner (headless, muted)
 ```
 
-Both must pass locally before the PR; CI runs the same.
+Both must pass locally before the PR. CI re-runs only the lint and build; the
+browser tests are your job (docs/CI-BUDGET.md).

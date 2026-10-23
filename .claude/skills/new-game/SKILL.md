@@ -86,9 +86,11 @@ gh pr create --title "game(<id>): <title>" --body-file .github/PULL_REQUEST_TEMP
 ```
 
 Then edit the PR body: fill every line of the template truthfully, including the
-checks you ran and anything you could not verify. CI builds it, lints it, smoke
-tests it and an automated review posts comments; a maintainer merges. After the
-merge it deploys on its own and every installed app picks it up on next focus.
+checks you ran (with their results) and anything you could not verify. CI
+runs one quick lint-and-build job; the smoke and gameplay tests are YOURS to run
+locally, and the PR must say they passed. A maintainer reviews (optionally
+asking Claude with a `/claude-review` comment), merges, and starts a deploy;
+every installed app picks it up on next focus.
 
 ## If something is out of scope
 

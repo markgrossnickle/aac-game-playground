@@ -12,8 +12,9 @@ Status). Android installer: `/download` on the live site.
 
 **Anyone can contribute a game.** With Claude Code, describe the game and run
 `/new-game`; you get a pull request. Without it, follow
-[CONTRIBUTING.md](CONTRIBUTING.md). CI builds and tests it, an automated review
-comments, a maintainer plays it and merges, and merging deploys.
+[CONTRIBUTING.md](CONTRIBUTING.md). You run the browser and gameplay tests
+locally and paste the result; one quick CI job lints and builds it; a
+maintainer reviews (optionally asking Claude), plays it, merges and deploys.
 
 ## How AAC input works
 
@@ -25,7 +26,8 @@ comments, a maintainer plays it and merges, and merging deploys.
   the AAC app. Nothing is shared until the AAC user turns sharing on, and
   nothing arrives after they turn it off.
 - Every AAC game ships a gameplay test proving the words play it: start,
-  play, replay, ignored words, duplicates, disconnects, sharing off.
+  play, replay, ignored words, duplicates, disconnects, sharing off. It runs
+  locally with the smoke tests (`cd html && npm run build && npm run smoke`).
 
 Read [docs/guides/AAC.md](docs/guides/AAC.md) before building an AAC game.
 
@@ -58,8 +60,9 @@ Deploys refuse any other project (`tools/check-hosting.mjs`).
 
 ## Status
 
-- Hosting projects exist; the repository needs a `VERCEL_TOKEN` secret before
-  the first deploy runs.
+- Hosting projects exist, with one project-scoped token each. Deploys are
+  started by hand from `main` (`gh workflow run deploy.yml`), per
+  [docs/CI-BUDGET.md](docs/CI-BUDGET.md).
 - The AAC relay needs a host that keeps WebSockets open; until then games take
   AAC words from the dev panel, tests and same-site pages.
 - No games yet. Be the first.

@@ -42,15 +42,17 @@ minutes as scarce.
 
 ## What this means for this template's own workflows
 
-This template was built CI-first (CI gates the deploy). When spinning off a new
-bundle, trim it to the rules above:
+The template's workflows follow these rules as shipped, so a spinoff inherits
+them; keep them that way.
 
-| Workflow | Cost | At spin-off |
+| Workflow | Trigger | Cost |
 |---|---|---|
-| `ci.yml` | `checks` is cheap; `build-and-smoke` installs Chromium and runs Playwright on every PR and every push to `main` | Keep `checks` plus build on `pull_request` only. Move the smoke test to local (`cd html && npm run build && npm run smoke`). |
-| `claude-review.yml` | One Claude Code run per PR update, plus API spend | Delete it, or change it to `/claude-review` comment only. |
-| `deploy.yml` | Rebuilds on every merge via `workflow_run` | Switch to `workflow_dispatch`, or deploy from a local script as voobug-bundle does (`tools/deploy-ota.sh`). The buildId check then compares against a local build. |
-| `shim.yml` | Manual only, Android build is slow but rare | Keep as is. |
+| `ci.yml` | `pull_request` only | One ubuntu job: config, lint, scope, type check, build. About a minute, no browser. |
+| `claude-review.yml` | a maintainer's `/claude-review` comment | Nothing unless asked; then one run plus API spend (or a Claude subscription token). Other comments start no runner. |
+| `deploy.yml` | `workflow_dispatch` from `main` | About two minutes per deploy you start. |
+| `shim.yml` | `workflow_dispatch` | Slow Android build, only for native changes. |
+
+Smoke and gameplay tests run locally: `cd html && npm run build && npm run smoke`.
 
 ## Where things stand (October 2026)
 

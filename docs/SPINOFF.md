@@ -135,21 +135,23 @@ node tools/protect-main.mjs
 ```
 
 It adds a ruleset: changes only through pull requests, one code-owner review,
-the two CI jobs passing, no force pushes. Admins can merge a PR without the
+the one CI job ("Checks and build") passing, no force pushes. Admins can merge a PR without the
 review (a sole maintainer cannot approve their own PR) but cannot push to
 `main` directly. Edit `.github/CODEOWNERS` to name the maintainers first.
 
-Automated review on forked PRs: GitHub does not give secrets to workflows
-running for a fork, so the automatic review only runs for branches of this
-repository. For a fork, a maintainer comments `/claude-review` on the PR.
+Claude review runs only when a maintainer comments `/claude-review` on a PR
+(including PRs from forks, which never receive secrets themselves). Leave the
+key unset to never pay for it.
 
 ## 5. First deploy and first shim
 
-Merge a PR to `main`. CI runs; when it passes, `deploy.yml` uploads the exact
-files that CI built and smoke-tested, claims the fresh project on the first
-run, and verifies the live buildId.
+Run the local gate on `main`, then start the deploy by hand. It builds without
+secrets, claims the fresh project on the first run, uploads that build and
+verifies the live buildId.
 
 ```bash
+(cd html && npm ci && npm run build && npm run smoke)
+gh workflow run deploy.yml && gh run watch
 tools/verify-live.sh <buildId>     # the id printed by the deploy run
 ```
 

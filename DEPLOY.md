@@ -13,13 +13,14 @@ Authoritative. If another file disagrees, this one wins. No em dashes in docs.
    changes need no reinstall.** Only native changes (app name, icon,
    permissions, Capacitor plugins or versions, `appId`, `webUrl`) need a new shim,
    and a shim installs only if `versionCode` went UP (the workflow bumps it).
-4. Merging to `main` runs CI; only when CI passes does
-   `.github/workflows/deploy.yml` run. It proves the hosting is this bundle's
-   own fresh project (`tools/check-hosting.mjs`), uploads the exact files CI
-   built and smoke-tested (the `site` artifact, via `tools/vercel-upload.mjs`;
-   no build and no repository code run while the token is loaded), and
-   `tools/verify-live.sh` confirms the live `buildId`. Each Vercel project has
-   its own project-scoped token in the `production` environment.
+4. Deploys are started by hand from `main` (`docs/CI-BUDGET.md`: no deploy
+   chained off CI). `.github/workflows/deploy.yml` builds without any secret,
+   then a second job proves the hosting is this bundle's own fresh project
+   (`tools/check-hosting.mjs`), uploads exactly that build through the Vercel
+   API (`tools/vercel-upload.mjs`; no build and no repository code run while
+   the token is loaded), and `tools/verify-live.sh` confirms the live
+   `buildId`. Each Vercel project has its own project-scoped token in the
+   `production` environment.
 5. Every open page re-reads `games-manifest.json` on focus. The hub reloads when
    it changed, cached games refresh in the background, a game in play shows a
    tap-to-update banner. Details: `docs/ARCHITECTURE.md`.
@@ -44,7 +45,7 @@ app (docs/SPINOFF.md, "The one rule about hosting").
 
 | Change | Examples | What happens |
 |---|---|---|
-| Content | any game, hub, CSS, art, audio, JSON, `vercel.json` headers | Merge to `main`. `deploy.yml` ships it. Devices update on next focus. |
+| Content | any game, hub, CSS, art, audio, JSON, `vercel.json` headers | Merge to `main`, then run Deploy. Devices update on next focus. |
 | Native | app name or icon (`android/app/src/main/res`), `AndroidManifest.xml`, a Capacitor plugin, Capacitor/Gradle/SDK versions, `appId` or `webUrl` in `bundle.config.json` | Merge to `main`, then run **Shim APK** (Actions tab). Users install once from `/download`. |
 
 Native gotchas that have bitten before:
@@ -61,9 +62,13 @@ Native gotchas that have bitten before:
 ## The flow
 
 ```sh
-# 1. land the change on main through a PR (protected: review + CI)
-# 2. CI passes on main, then deploy.yml runs by itself; watch the Actions tab
-# 3. VERIFY at the real URL (not optional):
+# 1. land the change on main through a PR (protected: review + the one CI job)
+# 2. on an up-to-date main, run the local gate (headless, muted):
+git switch main && git pull --ff-only
+(cd html && npm ci && npm run build && npm run smoke)
+# 3. start the deploy and watch it:
+gh workflow run deploy.yml && gh run watch
+# 4. VERIFY at the real URL (not optional):
 tools/verify-live.sh <buildId>  # the id the deploy run printed
 ```
 

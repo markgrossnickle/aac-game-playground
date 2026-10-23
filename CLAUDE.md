@@ -34,7 +34,8 @@ cache. `docs/ARCHITECTURE.md` explains the whole flow.
 - **Fresh hosting per bundle, always.** Never point a bundle at a Vercel
   project, domain or APK host another bundle or app has used.
   `tools/check-hosting.mjs` enforces it before every deploy; never weaken it.
-- **Shipping: `DEPLOY.md`.** Merging to `main` deploys the commit CI tested. Verify at the
+- **Shipping: `DEPLOY.md`.** Deploys are started by hand from `main`
+  (`gh workflow run deploy.yml`) after the local checks pass on `main`. Verify at the
   real URL (`tools/verify-live.sh`), never from a workflow's green badge. Only
   native changes need the shim workflow, and a shim only installs if
   `versionCode` went up (the workflow bumps it).
@@ -50,7 +51,7 @@ cache. `docs/ARCHITECTURE.md` explains the whole flow.
 ## Commands
 
 ```bash
-node tools/check-games.mjs [id]          # conformity lint (what CI runs)
+node tools/check-games.mjs [id]          # conformity lint (CI runs this too)
 node tools/sync-config.mjs [--check]     # push bundle.config.json into vercel.json, shell, capacitor, android
 node html/scripts/new-game.mjs <id> "Title" [--players 2] [--orientation portrait] [--emoji 🎲]
 cd html && npm run dev                   # hub + games at http://localhost:5173

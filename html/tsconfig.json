@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["vite/client"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "useDefineForClassFields": true,
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true
+  },
+  "include": ["src", "games", "plugins", "vite.config.ts"],
+  "exclude": ["**/tests/**", "**/*.spec.ts", "playwright.config.ts"]
+}

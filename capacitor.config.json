@@ -1,0 +1,9 @@
+{
+  "appId": "com.example.gamebundle",
+  "appName": "Game Bundle",
+  "webDir": "html/shell",
+  "server": {
+    "url": "https://example-bundle.vercel.app",
+    "cleartext": false
+  }
+}

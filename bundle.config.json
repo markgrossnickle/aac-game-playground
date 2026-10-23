@@ -1,0 +1,21 @@
+{
+  "$schema": "./schemas/bundle.config.schema.json",
+  "name": "Game Bundle",
+  "shortName": "Bundle",
+  "description": "A growing collection of small games in one app.",
+  "appId": "com.example.gamebundle",
+  "webUrl": "https://example-bundle.vercel.app",
+  "apkUrl": "https://example-bundle-apk.vercel.app",
+  "theme": {
+    "background": "#0e1116",
+    "accent": "#58a6ff"
+  },
+  "budgets": {
+    "maxGameMB": 10,
+    "maxFileMB": 3,
+    "maxFilesPerGame": 400
+  },
+  "audio": {
+    "defaultMutedOnDesktop": false
+  }
+}

@@ -1,0 +1,32 @@
+node_modules/
+dist/
+.DS_Store
+*.log
+.env
+.env.local
+.idea/
+.vscode/
+
+# Build output and test artifacts
+html/dist/
+html/test-results/
+html/playwright-report/
+
+# Capacitor / Android build junk (android/.gitignore covers more)
+android/build/
+android/app/build/
+android/.gradle/
+android/local.properties
+android/capacitor-cordova-android-plugins/
+
+# Vercel CLI link files (CI writes them from secrets)
+.vercel/
+apk-host/.vercel/
+
+# Never commit an APK. The shim is built by the shim workflow and hosted on the
+# APK project; committed APKs once grew a bundle repo to 800 MB.
+*.apk
+
+# Claude Code session worktrees
+.claude/worktrees/
+.worktrees/

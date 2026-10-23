@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Download %BUNDLE_NAME%</title>
+    <meta name="theme-color" content="%BUNDLE_BG%" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32.png" />
+    <link rel="apple-touch-icon" href="/icons/icon-180.png" />
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: %BUNDLE_BG%;
+        --accent: %BUNDLE_ACCENT%;
+        --fg: #e6edf3;
+        --muted: #8b949e;
+        --card: #1b2430;
+        --border: #2a313a;
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; padding: 0; }
+      body {
+        min-height: 100vh; display: flex; align-items: center; justify-content: center;
+        padding: 24px; background: var(--bg); color: var(--fg);
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; line-height: 1.5;
+      }
+      .card {
+        width: 100%; max-width: 460px; background: var(--card); border: 1px solid var(--border);
+        border-radius: 20px; padding: 32px 28px; text-align: center;
+      }
+      img.logo { width: 96px; height: 96px; border-radius: 22px; }
+      h1 { font-size: 26px; margin: 14px 0 6px; }
+      .tag { color: var(--muted); margin: 0 0 26px; font-size: 15px; }
+      .btn {
+        display: block; width: 100%; background: var(--accent); color: #0b1220; text-decoration: none;
+        font-size: 19px; font-weight: 700; padding: 18px 20px; border-radius: 14px;
+      }
+      .btn:active { transform: scale(0.985); }
+      .url { margin: 16px 0 4px; font-size: 13px; color: var(--muted); word-break: break-all; }
+      .url code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--fg); }
+      .note { margin: 22px 0 0; font-size: 13px; color: var(--muted); border-top: 1px solid var(--border); padding-top: 18px; text-align: left; }
+      .back { margin-top: 18px; font-size: 14px; }
+      .back a { color: var(--accent); text-decoration: none; }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <img class="logo" src="/icons/icon-192.png" alt="" width="96" height="96" />
+      <h1>%BUNDLE_NAME%</h1>
+      <p class="tag">%BUNDLE_DESCRIPTION%</p>
+
+      <a class="btn" href="/games.apk" download>Download for Android (APK)</a>
+
+      <p class="url"><code>%BUNDLE_WEB_URL%/games.apk</code></p>
+
+      <p class="note">
+        One small installer (about 4 MB). Games load and update over the air, so this
+        is the only download you ever need. On the device: open this page, tap the
+        button, then open the downloaded file to install. Allow "install from this
+        source" if asked. Reinstalling over an older build keeps your progress.
+      </p>
+
+      <p class="back"><a href="/">Play in the browser instead</a></p>
+    </main>
+  </body>
+</html>

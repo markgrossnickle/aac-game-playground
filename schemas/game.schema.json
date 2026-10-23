@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "game.schema.json",
+  "title": "Game manifest (game.json)",
+  "description": "One per game at html/games/<id>/game.json. The build reads it to register the game and draw its hub card.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "title", "icon", "players", "orientation", "addedOn", "description"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$",
+      "maxLength": 40,
+      "description": "Folder name under html/games/. Lowercase, hyphens only."
+    },
+    "title": { "type": "string", "minLength": 1, "maxLength": 32, "description": "Shown on the hub card. Keep it short." },
+    "icon": {
+      "oneOf": [
+        { "type": "string", "pattern": "^[A-Za-z0-9._-]+\\.(png|webp|svg)$", "description": "File inside the game folder, square, 512px or less." },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["emoji"],
+          "properties": { "emoji": { "type": "string", "minLength": 1, "maxLength": 8 } }
+        }
+      ]
+    },
+    "players": { "type": "integer", "enum": [1, 2] },
+    "orientation": { "type": "string", "enum": ["any", "portrait", "landscape"] },
+    "ages": { "type": "string", "pattern": "^[0-9]{1,2}(-[0-9]{1,2}|\\+)?$", "description": "For example 4-8 or 6+." },
+    "addedOn": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$", "description": "YYYY-MM-DD. The hub marks a game New for 30 days." },
+    "authors": { "type": "array", "items": { "type": "string", "minLength": 1 }, "maxItems": 10 },
+    "description": { "type": "string", "minLength": 1, "maxLength": 140, "description": "One line. Used by the review and the hub tooltip." },
+    "entry": { "type": "string", "const": "index.html" },
+    "hidden": { "type": "boolean", "description": "Build it but do not show a hub card." }
+  }
+}

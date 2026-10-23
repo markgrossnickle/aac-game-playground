@@ -1,0 +1,73 @@
+name: Deploy
+
+# Every push to main (that is, every merged PR) ships the whole bundle to the
+# web project, then verifies at the real URL that the live buildId matches.
+# Installed apps and open sites pick it up on their next focus (ARCHITECTURE.md).
+#
+# Secrets (docs/SPINOFF.md): VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID.
+# Without them the job stops with a notice instead of failing.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Never two deploys at once; a later push waits for the earlier one.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: html/.nvmrc
+          cache: npm
+          cache-dependency-path: html/package-lock.json
+
+      - name: Check secrets
+        id: secrets
+        env:
+          OK: ${{ secrets.VERCEL_TOKEN != '' && secrets.VERCEL_ORG_ID != '' && secrets.VERCEL_PROJECT_ID != '' }}
+        run: echo "ok=$OK" >> "$GITHUB_OUTPUT"
+      - name: Not configured
+        if: steps.secrets.outputs.ok != 'true'
+        run: echo "::notice::VERCEL_TOKEN / VERCEL_ORG_ID / VERCEL_PROJECT_ID are not set; skipping deploy. See docs/SPINOFF.md."
+
+      - name: Config in sync and games conform (same gates as CI)
+        if: steps.secrets.outputs.ok == 'true'
+        run: |
+          node tools/sync-config.mjs --check
+          node tools/check-games.mjs
+
+      - name: Build
+        if: steps.secrets.outputs.ok == 'true'
+        working-directory: html
+        run: |
+          npm ci
+          npm run build
+          echo "BUILD_ID=$(node -p 'JSON.parse(require("fs").readFileSync("dist/games-manifest.json","utf8")).buildId')" >> "$GITHUB_ENV"
+
+      - name: Deploy to Vercel (prebuilt, production)
+        if: steps.secrets.outputs.ok == 'true'
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          npm i -g vercel@latest
+          vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+          # Vercel builds the project itself with vercel.json's buildCommand; we only
+          # verify afterwards that what went live is the same build id we produced.
+          vercel deploy --prod --yes --token="$VERCEL_TOKEN" > deploy-url.txt
+          echo "Deployed: $(cat deploy-url.txt)"
+
+      - name: Verify at the real URL
+        if: steps.secrets.outputs.ok == 'true'
+        run: bash tools/verify-live.sh "$BUILD_ID"

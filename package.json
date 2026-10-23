@@ -1,0 +1,22 @@
+{
+  "name": "game-bundle-shim",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Capacitor shim for the game bundle. Its WebView loads the bundle site live; see DEPLOY.md.",
+  "scripts": {
+    "sync:config": "node tools/sync-config.mjs",
+    "check:config": "node tools/sync-config.mjs --check",
+    "check:games": "node tools/check-games.mjs",
+    "check:pr-scope": "node tools/check-pr-scope.mjs",
+    "new-game": "node html/scripts/new-game.mjs",
+    "sync:android": "node tools/sync-config.mjs && npx cap sync android"
+  },
+  "dependencies": {
+    "@capacitor/app": "^6.0.2",
+    "@capacitor/core": "^6.2.1"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^6.2.1",
+    "@capacitor/cli": "^6.2.1"
+  }
+}

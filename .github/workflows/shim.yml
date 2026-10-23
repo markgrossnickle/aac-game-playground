@@ -1,0 +1,159 @@
+name: Shim APK
+
+# Builds the thin Android shim (a Capacitor shell whose WebView loads the live
+# site) and, when the APK host secrets exist, publishes it as /games.apk.
+# Run it by hand (Actions tab) only for NATIVE changes: app name or icon,
+# permissions, Capacitor plugins or versions, bundle.config.json appId/webUrl.
+# Content changes never need it; the installed app updates itself.
+#
+# Secrets (docs/SPINOFF.md): VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_APK_PROJECT_ID.
+# Optional release signing: ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD,
+# ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD. Without them a debug-signed APK is
+# built (fine for side-loading; the same key must be used for every update).
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: "Publish to the APK host and commit the versionCode bump"
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: shim
+  cancel-in-progress: false
+
+jobs:
+  shim:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: html/.nvmrc
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: android-actions/setup-android@v3
+
+      - name: Apply bundle.config.json to the Android project
+        run: |
+          npm ci
+          node tools/sync-config.mjs
+          git diff --quiet || { echo "::error::android/ was out of sync with bundle.config.json; commit the result of 'node tools/sync-config.mjs' first"; git --no-pager diff --stat; exit 1; }
+
+      - name: Bump versionCode (an install only replaces the old shim if it went UP)
+        id: bump
+        run: |
+          GRADLE=android/app/build.gradle
+          CUR=$(grep -oE 'versionCode[[:space:]]+[0-9]+' "$GRADLE" | grep -oE '[0-9]+')
+          NEW=$((CUR + 1))
+          sed -i -E "s/versionCode[[:space:]]+[0-9]+/versionCode ${NEW}/" "$GRADLE"
+          sed -i -E "s/versionName[[:space:]]+\"[^\"]*\"/versionName \"1.${NEW}\"/" "$GRADLE"
+          echo "versionCode=$NEW" >> "$GITHUB_OUTPUT"
+          echo "versionCode $CUR -> $NEW"
+
+      - name: Capacitor sync (compiles the native plugins into the shim)
+        run: npx cap sync android
+
+      - name: Release signing config (only when keystore secrets exist)
+        env:
+          KS: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          # The secrets context is not allowed in a step `if`, so decide here.
+          if [ -z "$KS" ]; then echo "no keystore secret; building a debug-signed APK"; exit 0; fi
+          echo "$KS" | base64 -d > android/app/release.keystore
+          cat >> android/app/build.gradle <<'EOF'
+
+          android {
+              signingConfigs {
+                  release {
+                      storeFile file("release.keystore")
+                      storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                      keyAlias System.getenv("ANDROID_KEY_ALIAS")
+                      keyPassword System.getenv("ANDROID_KEY_PASSWORD")
+                  }
+              }
+              buildTypes { release { signingConfig signingConfigs.release } }
+          }
+          EOF
+
+      - name: Build APK
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          if [ -n "$ANDROID_KEYSTORE_PASSWORD" ]; then
+            ./gradlew clean assembleRelease --no-daemon
+            cp app/build/outputs/apk/release/app-release.apk ../games.apk
+          else
+            ./gradlew clean assembleDebug --no-daemon
+            cp app/build/outputs/apk/debug/app-debug.apk ../games.apk
+          fi
+
+      - name: Verify the APK is a real shim
+        run: |
+          SIZE=$(stat -c%s games.apk)
+          echo "APK size: $SIZE bytes"
+          [ "$SIZE" -lt 12000000 ] || { echo "::error::APK is over 12 MB; webDir is probably not html/shell"; exit 1; }
+          unzip -p games.apk assets/capacitor.plugins.json | grep -q AppPlugin \
+            || { echo "::error::capacitor.plugins.json is missing AppPlugin; cap sync did not run"; exit 1; }
+          unzip -p games.apk assets/capacitor.config.json | grep -q '"url"' \
+            || { echo "::error::capacitor.config.json has no server.url; the shim would not load the site"; exit 1; }
+          unzip -p games.apk assets/capacitor.config.json
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: games-apk-v${{ steps.bump.outputs.versionCode }}
+          path: games.apk
+
+      - name: Check APK host secrets
+        id: secrets
+        env:
+          OK: ${{ secrets.VERCEL_TOKEN != '' && secrets.VERCEL_ORG_ID != '' && secrets.VERCEL_APK_PROJECT_ID != '' }}
+        run: echo "ok=$OK" >> "$GITHUB_OUTPUT"
+
+      - name: Publish to the APK host project
+        if: ${{ inputs.publish && steps.secrets.outputs.ok == 'true' }}
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_APK_PROJECT_ID }}
+        working-directory: apk-host
+        run: |
+          cp ../games.apk games.apk
+          npm i -g vercel@latest
+          vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+          vercel deploy --prod --yes --token="$VERCEL_TOKEN"
+          rm games.apk
+          APK_URL=$(node -p 'JSON.parse(require("fs").readFileSync("../bundle.config.json","utf8")).apkUrl')
+          WEB_URL=$(node -p 'JSON.parse(require("fs").readFileSync("../bundle.config.json","utf8")).webUrl')
+          SIZE=$(stat -c%s ../games.apk)
+          for i in 1 2 3 4 5 6; do
+            CL=$(curl -sI "$APK_URL/games.apk?cb=$i" | grep -i '^content-length' | grep -oE '[0-9]+' || true)
+            [ "$CL" = "$SIZE" ] && break; sleep 5
+          done
+          [ "$CL" = "$SIZE" ] || { echo "::error::$APK_URL/games.apk serves $CL bytes, expected $SIZE"; exit 1; }
+          CL2=$(curl -sIL "$WEB_URL/games.apk?cb=x" | grep -i '^content-length' | tail -1 | grep -oE '[0-9]+' || true)
+          [ "$CL2" = "$SIZE" ] || echo "::warning::$WEB_URL/games.apk redirect resolves to '$CL2' bytes; check vercel.json redirects and that the web deploy is live"
+
+      - name: Commit the versionCode bump
+        if: ${{ inputs.publish && steps.secrets.outputs.ok == 'true' }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add android/app/build.gradle
+          git commit -m "shim: bump versionCode to ${{ steps.bump.outputs.versionCode }}"
+          git push origin HEAD:main
+
+      - name: Not published
+        if: ${{ !(inputs.publish && steps.secrets.outputs.ok == 'true') }}
+        run: echo "::notice::APK built and uploaded as a workflow artifact only (publish=${{ inputs.publish }}, host secrets=${{ steps.secrets.outputs.ok }})."

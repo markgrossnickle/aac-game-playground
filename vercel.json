@@ -1,0 +1,46 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "cd html && npm ci && npm run build",
+  "outputDirectory": "html/dist",
+  "cleanUrls": true,
+  "redirects": [
+    {
+      "source": "/games.apk",
+      "destination": "https://example-bundle-apk.vercel.app/games.apk",
+      "permanent": false
+    }
+  ],
+  "headers": [
+    {
+      "source": "/assets/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/sw.js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        },
+        {
+          "key": "Service-Worker-Allowed",
+          "value": "/"
+        }
+      ]
+    },
+    {
+      "source": "/((?!assets/).*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        }
+      ]
+    }
+  ]
+}

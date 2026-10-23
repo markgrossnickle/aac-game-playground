@@ -1,0 +1,12 @@
+{
+  "$schema": "../../../schemas/game.schema.json",
+  "id": "__GAME_ID__",
+  "title": "__GAME_TITLE__",
+  "icon": { "emoji": "🫧" },
+  "players": 1,
+  "orientation": "any",
+  "ages": "4-8",
+  "addedOn": "__DATE__",
+  "authors": ["__AUTHOR__"],
+  "description": "Pop the bubbles before they float away."
+}

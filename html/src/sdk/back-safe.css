@@ -1,0 +1,36 @@
+/*
+ * Shared Back-button safe zone: cross-cutting UI convention.
+ * See docs/UI-CONVENTIONS.md for the rule and rationale.
+ *
+ * Every game ships a global Back link (`<a class="back">`) pinned to the
+ * top-left corner. This file reserves a fixed safe zone there that NO game
+ * UI may occupy or overlap. It is imported by each example's index.html
+ * AFTER that game's own style.css, so these rules win the cascade and the
+ * safe zone is enforced centrally instead of hand-tuned per game.
+ */
+:root {
+  /* Reserved zone measured from the top-left corner. --back-safe-w doubles
+   * as the minimum left padding a top bar must leave for the Back button. */
+  --back-safe-w: 92px; /* width  of reserved zone / min top-bar left padding */
+  --back-safe-h: 60px; /* height of reserved zone (44px button + 12px inset) */
+  --back-inset-x: 14px; /* Back button left inset */
+  --back-inset-y: 12px; /* Back button top inset  */
+}
+
+/* Pin the Back button into the safe zone and above the top bar (z 20).
+ * Geometry is enforced (!important) so no game rule can drift it out of the
+ * corner; colors/shape stay game-owned. z-index stays modest so intentional
+ * full-screen intro overlays (z 40 and up) still cover it. */
+.back {
+  position: fixed !important;
+  top: var(--back-inset-y) !important;
+  left: var(--back-inset-x) !important;
+  z-index: 30;
+}
+
+/* Enforce the reserve on every game top bar, in ALL viewports (portrait
+ * media queries previously dropped this to 80px and collided with the
+ * button). Keeps the safe zone clear regardless of per-game overrides. */
+.topbar {
+  padding-left: var(--back-safe-w) !important;
+}

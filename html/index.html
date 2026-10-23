@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>%BUNDLE_NAME%</title>
+    <meta name="description" content="%BUNDLE_DESCRIPTION%" />
+    <meta name="theme-color" content="%BUNDLE_BG%" />
+    <meta name="apple-mobile-web-app-title" content="%BUNDLE_SHORT_NAME%" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32.png" />
+    <link rel="apple-touch-icon" href="/icons/icon-180.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <link rel="stylesheet" href="./src/landing/landing.css" />
+    <style>
+      :root {
+        --bg: %BUNDLE_BG%;
+        --accent: %BUNDLE_ACCENT%;
+      }
+    </style>
+  </head>
+  <body>
+    <button type="button" id="close-app" class="close-app" hidden aria-label="Close app" title="Close app">
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M12 3v9" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" />
+        <path d="M7.5 6.4a8 8 0 1 0 9 0" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" />
+      </svg>
+    </button>
+
+    <header class="hdr">
+      <h1>%BUNDLE_NAME%</h1>
+    </header>
+
+    <div id="update-banner" class="update-banner" hidden role="status"></div>
+
+    <main class="grid">
+      <!-- GAMES -->
+    </main>
+
+    <footer class="ftr">
+      <a href="/download/">Get the Android app</a>
+      <span class="ftr-build" id="build-id" aria-hidden="true"></span>
+    </footer>
+
+    <script type="module" src="./src/landing/main.ts"></script>
+  </body>
+</html>

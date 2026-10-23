@@ -1,0 +1,18 @@
+# Applies to the web deploy (run from the repo root by .github/workflows/deploy.yml).
+# Vercel builds remotely from source (vercel.json buildCommand), so none of these
+# are needed for the build, and the upload must stay under Vercel's 15,000-file limit.
+.claude/
+.worktrees/
+node_modules/
+android/
+templates/
+tools/
+docs/
+html/dist/
+html/test-results/
+html/playwright-report/
+*.log
+# NEVER ship an APK inside a web deploy: Vercel keeps every deployment, so each
+# content deploy would store another copy forever. The APK lives on apk-host/.
+*.apk
+apk-host/

@@ -1,0 +1,62 @@
+name: Claude review
+
+# Automated first-pass review of every pull request against
+# docs/REVIEW-CHECKLIST.md. A human maintainer still approves and merges.
+#
+# Needs one repository secret: ANTHROPIC_API_KEY (or install the Claude GitHub
+# app and set CLAUDE_CODE_OAUTH_TOKEN instead; see docs/SPINOFF.md). Without a
+# key the job skips with a notice rather than failing the PR.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+  id-token: write
+
+concurrency:
+  group: claude-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    if: ${{ !github.event.pull_request.draft }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check for a key
+        id: key
+        env:
+          HAS_KEY: ${{ secrets.ANTHROPIC_API_KEY != '' || secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
+        run: echo "present=$HAS_KEY" >> "$GITHUB_OUTPUT"
+
+      - name: No key configured
+        if: steps.key.outputs.present != 'true'
+        run: echo "::notice::ANTHROPIC_API_KEY not set; skipping the automated review. See docs/SPINOFF.md."
+
+      - uses: actions/checkout@v4
+        if: steps.key.outputs.present == 'true'
+        with:
+          fetch-depth: 0
+
+      - name: Review with Claude
+        if: steps.key.outputs.present == 'true'
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            You are reviewing pull request #${{ github.event.pull_request.number }} in this game bundle repository.
+
+            1. Read docs/REVIEW-CHECKLIST.md in full. It is the contract.
+            2. Read the diff of this PR (use `gh pr diff ${{ github.event.pull_request.number }}`).
+            3. If the PR adds or changes a game under html/games/<id>/, also read that game's game.json,
+               index.html and src/, and skim docs/guides/GAME-DESIGN.md, docs/guides/UI.md and docs/guides/CODING.md so your
+               comments cite the rule being broken.
+            4. Post ONE review on the PR (use `gh pr review`):
+               - Request changes if any "must" item in the checklist fails, naming the file and line.
+               - Otherwise approve-with-comments listing anything a maintainer should look at by hand
+                 (art quality, text amount, fun factor) and anything you could not verify.
+            5. Keep it short. Bullet points. No restating the diff. Do not edit files or push.
+          claude_args: "--max-turns 25 --allowedTools Bash(gh pr diff:*),Bash(gh pr review:*),Bash(gh pr view:*),Read,Grep,Glob"

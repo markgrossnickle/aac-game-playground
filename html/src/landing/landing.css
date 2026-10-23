@@ -1,0 +1,382 @@
+:root {
+  --bg: #0e1116;
+  --tile: #1b2430;
+  --tile-2: #223042;
+  --fg: #e6edf3;
+  --muted: #8b949e;
+  --accent: #58a6ff;
+  --border: #2a313a;
+  --radius: 20px;
+  font-family:
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--fg);
+  min-height: 100%;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.hdr {
+  padding: 32px 24px 8px;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+  text-align: center;
+}
+
+.hdr h1 {
+  margin: 0;
+  font-size: clamp(24px, 4vw, 40px);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+/* Filter tabs: All games / New / Favorites. Big, touch-friendly pills. */
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  padding: 8px clamp(16px, 4vw, 40px) 0;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.tab {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: var(--tile);
+  color: var(--fg);
+  font: inherit;
+  font-weight: 600;
+  font-size: clamp(15px, 1.8vw, 18px);
+  padding: 12px 22px;
+  min-height: 48px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition:
+    background 0.12s ease,
+    border-color 0.12s ease,
+    color 0.12s ease;
+}
+
+.tab:hover,
+.tab:focus-visible {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.tab.is-active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #0b1220;
+}
+
+.empty-state {
+  max-width: 1200px;
+  margin: 8px auto;
+  padding: 40px 24px;
+  width: 100%;
+  text-align: center;
+  color: var(--muted);
+  font-size: clamp(15px, 2vw, 18px);
+}
+
+/* Responsive grid of icon tiles: tight on phones, roomy on a large tablet. */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: clamp(12px, 2.4vw, 24px);
+  padding: 24px clamp(16px, 4vw, 40px);
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+  flex: 1;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+  padding: 18px 12px 16px;
+  background: var(--tile);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  text-decoration: none;
+  color: inherit;
+  text-align: center;
+  transition:
+    transform 0.12s ease,
+    border-color 0.12s ease,
+    background 0.12s ease;
+}
+
+/* A filtered-out card is hidden via the `hidden` attribute from main.ts. The
+   `.card` rule above sets `display: flex`, which (as an author style) overrides
+   the user-agent `[hidden] { display: none }`, so without this the tabs toggle
+   the attribute but nothing ever disappears. This restores the hide. */
+.card[hidden] {
+  display: none;
+}
+
+.card.has-fav {
+  position: relative;
+}
+
+/* Favorite heart: big tap target parked in the tile's top-right corner. */
+.fav-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 44px;
+  height: 44px;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 999px;
+  background: rgba(10, 14, 22, 0.55);
+  color: #ffffff;
+  cursor: pointer;
+  line-height: 0;
+  transition:
+    transform 0.12s ease,
+    color 0.12s ease,
+    background 0.12s ease;
+}
+
+.fav-btn svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.fav-btn:hover,
+.fav-btn:focus-visible {
+  background: rgba(10, 14, 22, 0.75);
+  outline: none;
+}
+
+.fav-btn.is-fav {
+  color: #ff6b81;
+}
+
+.fav-btn:active {
+  transform: scale(0.9);
+}
+
+.card:hover,
+.card:focus-visible {
+  border-color: var(--accent);
+  background: var(--tile-2);
+  transform: translateY(-3px);
+  outline: none;
+}
+
+.card:active {
+  transform: translateY(-1px) scale(0.99);
+}
+
+/* The transparent subject sits on a consistent soft rounded plate, so the
+   whole set reads as one icon family regardless of per-image background. */
+.ico {
+  width: 100%;
+  max-width: 132px;
+  aspect-ratio: 1 / 1;
+  object-fit: contain;
+  padding: 10px;
+  border-radius: 18px;
+  background: radial-gradient(
+    circle at 50% 38%,
+    #ffffff 0%,
+    #f2f6fb 60%,
+    #e7eef6 100%
+  );
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
+}
+
+/* Emoji-as-icon tiles (games without a raster icon yet). */
+.ico--emoji {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(48px, 9vw, 84px);
+  line-height: 1;
+}
+
+.title {
+  font-size: clamp(14px, 1.6vw, 17px);
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.ftr {
+  padding: 20px 24px 32px;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.ftr a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.ftr a:hover {
+  text-decoration: underline;
+}
+
+/* Close-app (exit) button: parked in the top-right corner, out of the grid so
+   kids do not hit it while playing. Native APK only (main hidden on web via JS).
+   Two-tap confirm: it turns red/pulses once armed. */
+.close-app {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  z-index: 10;
+  width: 48px;
+  height: 48px;
+  padding: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: rgba(10, 14, 22, 0.6);
+  color: var(--muted);
+  cursor: pointer;
+  line-height: 0;
+  transition:
+    background 0.12s ease,
+    border-color 0.12s ease,
+    color 0.12s ease,
+    transform 0.12s ease;
+}
+
+.close-app[hidden] {
+  display: none;
+}
+
+.close-app svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.close-app:hover,
+.close-app:focus-visible {
+  color: var(--fg);
+  border-color: var(--accent);
+  outline: none;
+}
+
+.close-app:active {
+  transform: scale(0.9);
+}
+
+/* While the power button is being HELD, fill it red over the 2s hold window so
+   the child/adult sees the exit is charging; releasing early cancels it. */
+.close-app.is-holding {
+  color: #ffffff;
+  border-color: #d9384e;
+  background: #d9384e;
+  transform: scale(0.94);
+  animation: close-app-hold 2s linear forwards;
+}
+
+@keyframes close-app-hold {
+  from {
+    box-shadow: 0 0 0 0 rgba(217, 56, 78, 0.55);
+  }
+  to {
+    box-shadow: 0 0 0 10px rgba(217, 56, 78, 0);
+  }
+}
+
+
+/* "New" tag on a card added within the last 30 days (set at build time). */
+.card-tag {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #0b1220;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* Offline state dot: grey = not downloaded, green = ready offline, amber = updating. */
+.offline-dot {
+  position: absolute;
+  bottom: 10px;
+  right: 12px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #3a4451;
+}
+.offline-dot.is-ready {
+  background: #3fb950;
+}
+.offline-dot.is-stale {
+  background: #d29922;
+}
+
+/* Update banner under the header. */
+.update-banner {
+  max-width: 1200px;
+  margin: 8px auto 0;
+  padding: 10px 18px;
+  text-align: center;
+  color: var(--fg);
+  background: var(--tile-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  width: fit-content;
+  font-size: 14px;
+}
+.update-banner[hidden] {
+  display: none;
+}
+.update-banner.is-clickable {
+  cursor: pointer;
+  border-color: var(--accent);
+}
+
+.ftr-build {
+  display: block;
+  margin-top: 6px;
+  font-size: 11px;
+  opacity: 0.6;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}

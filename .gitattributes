@@ -1,0 +1,5 @@
+* text=auto eol=lf
+*.png binary
+*.jar binary
+*.apk binary
+android/gradlew text eol=lf

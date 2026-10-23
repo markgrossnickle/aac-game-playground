@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Game Bundle</title>
+  <style>
+    :root { color-scheme: dark; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 18px; padding: 24px; box-sizing: border-box; text-align: center;
+      font-family: -apple-system, system-ui, "Segoe UI", Roboto, sans-serif;
+      background: #0e1116; color: #e6edf3;
+    }
+    h1 { font-size: 1.6rem; margin: 0; }
+    p  { max-width: 22rem; line-height: 1.45; color: #8b949e; margin: 0; }
+    .spinner {
+      width: 44px; height: 44px; border-radius: 50%;
+      border: 4px solid #2a313a; border-top-color: #58a6ff;
+      animation: spin 0.9s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    button {
+      margin-top: 6px; padding: 12px 22px; font-size: 1rem; font-weight: 600;
+      color: #0b1220; background: #58a6ff; border: 0; border-radius: 12px; cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <!--
+    Offline fallback inside the shim APK. Capacitor `server.url` points the
+    WebView at the live site, so online this page is never shown. It appears only
+    when the site cannot be reached at all. tools/sync-config.mjs rewrites the
+    title and ORIGIN below from bundle.config.json; do not hand-edit them.
+  -->
+  <div class="spinner" aria-hidden="true"></div>
+  <h1>Game Bundle</h1>
+  <p id="msg">Loading games. If this screen stays, the device may be offline.</p>
+  <button id="retry" type="button">Retry</button>
+  <script>
+    var ORIGIN = "https://example-bundle.vercel.app/";
+    document.getElementById("retry").addEventListener("click", function () {
+      location.replace(ORIGIN);
+    });
+    setTimeout(function () {
+      try { location.replace(ORIGIN); } catch (e) {}
+    }, 1200);
+  </script>
+</body>
+</html>

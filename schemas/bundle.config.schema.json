@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "bundle.config.schema.json",
+  "title": "Bundle config",
+  "description": "The one file that names a client's bundle. Everything branded reads from here.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name", "shortName", "description", "appId", "webUrl", "apkUrl", "theme", "budgets"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "name": { "type": "string", "minLength": 1, "maxLength": 40, "description": "App and site title." },
+    "shortName": { "type": "string", "minLength": 1, "maxLength": 12, "description": "Home-screen label." },
+    "description": { "type": "string", "maxLength": 200 },
+    "appId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+      "description": "Android application id (reverse domain)."
+    },
+    "webUrl": { "type": "string", "pattern": "^https://[^/]+$", "description": "Origin the shim loads and the site is served from. No trailing slash." },
+    "apkUrl": { "type": "string", "pattern": "^https://[^/]+$", "description": "Origin that hosts /games.apk. No trailing slash." },
+    "theme": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["background", "accent"],
+      "properties": {
+        "background": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+        "accent": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" }
+      }
+    },
+    "budgets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["maxGameMB", "maxFileMB", "maxFilesPerGame"],
+      "properties": {
+        "maxGameMB": { "type": "number", "minimum": 1 },
+        "maxFileMB": { "type": "number", "minimum": 0.1 },
+        "maxFilesPerGame": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "audio": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "defaultMutedOnDesktop": { "type": "boolean" }
+      }
+    }
+  }
+}

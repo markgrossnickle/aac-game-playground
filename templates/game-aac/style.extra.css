@@ -1,0 +1,11 @@
+/* Shows the AAC hint ("Say go!") when an AAC board is sharing. */
+.heard {
+  position: fixed;
+  left: 50%;
+  top: calc(var(--hud-h) + 8px);
+  transform: translateX(-50%);
+  font-size: clamp(16px, 2.4vw, 22px);
+  font-weight: 700;
+  color: #4fd1a5;
+  pointer-events: none;
+}

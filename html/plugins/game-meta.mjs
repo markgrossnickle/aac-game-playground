@@ -35,7 +35,74 @@ const KNOWN_KEYS = new Set([
   "description",
   "entry",
   "hidden",
+  "input",
+  "aac",
 ]);
+
+const INPUTS = new Set(["touch", "aac"]);
+const MAX_AAC_WORDS = 50;
+
+/** Lowercase, drop punctuation, collapse spaces: the same rule aac-bridge matches with. */
+export function normalizeAacWord(s) {
+  return String(s ?? "")
+    .normalize("NFKC")
+    .toLocaleLowerCase()
+    .replace(/[\p{P}\p{S}]+/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * The AAC vocabulary of a validated game.json, as aac-bridge vocabulary entries
+ * ([] when the game does not take AAC input).
+ */
+export function aacVocabulary(meta) {
+  if (!meta || !Array.isArray(meta.input) || !meta.input.includes("aac") || !meta.aac) return [];
+  return meta.aac.vocabulary.map((e) => (typeof e === "string" ? { word: e } : { word: e.word, synonyms: e.synonyms ?? [] }));
+}
+
+function validateAac(g, errors) {
+  if (g.input !== undefined) {
+    if (!Array.isArray(g.input) || g.input.length === 0 || g.input.some((i) => !INPUTS.has(i)) || new Set(g.input).size !== g.input.length) {
+      errors.push('"input" must list "touch" and/or "aac"');
+    } else if (!g.input.includes("touch")) {
+      errors.push('"input" must include "touch": AAC is another way to play, never the only way');
+    }
+  }
+  const wantsAac = Array.isArray(g.input) && g.input.includes("aac");
+  if (g.aac !== undefined && !wantsAac) errors.push('"aac" is set but "input" does not include "aac"');
+  if (!wantsAac) return;
+  if (!g.aac || typeof g.aac !== "object" || Array.isArray(g.aac)) {
+    errors.push('"input" includes "aac", so "aac": { "vocabulary": [...] } is required');
+    return;
+  }
+  for (const key of Object.keys(g.aac)) if (key !== "vocabulary") errors.push(`unknown key "aac.${key}"`);
+  const vocab = g.aac.vocabulary;
+  if (!Array.isArray(vocab) || vocab.length === 0 || vocab.length > MAX_AAC_WORDS) {
+    errors.push(`"aac.vocabulary" must list 1 to ${MAX_AAC_WORDS} words`);
+    return;
+  }
+  const seen = new Set();
+  for (const entry of vocab) {
+    const word = typeof entry === "string" ? entry : entry && typeof entry === "object" ? entry.word : undefined;
+    const synonyms = entry && typeof entry === "object" ? entry.synonyms ?? [] : [];
+    if (typeof word !== "string" || !word.trim() || word.length > 40) {
+      errors.push('every "aac.vocabulary" entry needs a word of 1 to 40 characters');
+      continue;
+    }
+    if (entry && typeof entry === "object" && Object.keys(entry).some((k) => k !== "word" && k !== "synonyms")) {
+      errors.push(`"aac.vocabulary" entry "${word}" may only have word and synonyms`);
+    }
+    if (!Array.isArray(synonyms) || synonyms.some((s) => typeof s !== "string" || !s.trim() || s.length > 40)) {
+      errors.push(`"aac.vocabulary" entry "${word}" has invalid synonyms`);
+    }
+    for (const form of [word, ...(Array.isArray(synonyms) ? synonyms : [])]) {
+      const n = normalizeAacWord(form);
+      if (seen.has(n)) errors.push(`"aac.vocabulary" repeats "${form}" (words and synonyms must be unique)`);
+      seen.add(n);
+    }
+  }
+}
 
 /**
  * Validate a parsed game.json. Returns a list of human-readable problems;
@@ -102,6 +169,7 @@ export function validateGameMeta(json, folderName) {
 
   if (g.entry !== undefined && g.entry !== "index.html") errors.push('"entry" may only be "index.html"');
   if (g.hidden !== undefined && typeof g.hidden !== "boolean") errors.push('"hidden" must be true or false');
+  validateAac(g, errors);
 
   return errors;
 }

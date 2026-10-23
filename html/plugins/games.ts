@@ -4,7 +4,8 @@
 //                         nobody edits vite.config.ts or index.html to add a game.
 //  2. transformIndexHtml  fills %BUNDLE_*% placeholders from bundle.config.json
 //                         and injects one hub card per game at <!-- GAMES -->.
-//  3. virtual module      `virtual:bundle-config` gives the SDK the branding bits.
+//  3. virtual modules     `virtual:bundle-config` gives the SDK the branding bits;
+//                         `virtual:aac-vocabularies` gives it each game's AAC words.
 //  4. generateBundle      emits site.webmanifest from the config.
 //  5. closeBundle         walks dist/.vite/manifest.json per game and writes
 //                         dist/games-manifest.json: the registry the hub renders,
@@ -15,7 +16,7 @@ import { createHash } from "node:crypto";
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join, posix, resolve } from "node:path";
 import { normalizePath, type Plugin, type ResolvedConfig } from "vite";
-import { escapeHtml, validateGameMeta, type GameMeta } from "./game-meta.mjs";
+import { aacVocabulary, escapeHtml, validateGameMeta, type GameMeta } from "./game-meta.mjs";
 
 export interface BundleConfig {
   name: string;
@@ -27,6 +28,7 @@ export interface BundleConfig {
   theme: { background: string; accent: string };
   budgets: { maxGameMB: number; maxFileMB: number; maxFilesPerGame: number };
   audio?: { defaultMutedOnDesktop?: boolean };
+  aac?: { relay: string | null };
 }
 
 export interface DiscoveredGame {
@@ -65,6 +67,8 @@ export interface GamesManifest {
 
 const VIRTUAL_ID = "virtual:bundle-config";
 const RESOLVED_VIRTUAL_ID = "\0" + VIRTUAL_ID;
+const AAC_VIRTUAL_ID = "virtual:aac-vocabularies";
+const RESOLVED_AAC_VIRTUAL_ID = "\0" + AAC_VIRTUAL_ID;
 const NEW_WINDOW_DAYS = 30;
 
 export function loadBundleConfig(root: string): BundleConfig {
@@ -129,11 +133,14 @@ function renderCard(g: DiscoveredGame): string {
       ? `<img class="ico" src="games/${m.id}/${m.icon}" alt="" width="132" height="132" />`
       : `<div class="ico ico--emoji" aria-hidden="true">${escapeHtml(m.icon.emoji)}</div>`;
   const tag = isNew(m.addedOn) ? `<span class="card-tag">New</span>` : "";
+  const aac = m.input?.includes("aac");
+  const aacBadge = aac ? `<span class="card-aac" title="Plays with an AAC board">AAC</span>` : "";
   return [
-    `<a class="card" href="games/${m.id}/index.html" data-game="${m.id}" data-added-on="${m.addedOn}" data-players="${m.players}" title="${escapeHtml(m.description)}">`,
+    `<a class="card" href="games/${m.id}/index.html" data-game="${m.id}" data-added-on="${m.addedOn}" data-players="${m.players}"${aac ? ' data-aac="1"' : ""} title="${escapeHtml(m.description)}">`,
     `  ${icon}`,
     `  <span class="title">${escapeHtml(m.title)}</span>`,
     tag ? `  ${tag}` : "",
+    aacBadge ? `  ${aacBadge}` : "",
     `</a>`,
   ]
     .filter(Boolean)
@@ -212,10 +219,21 @@ export function games(): Plugin {
     },
 
     resolveId(id) {
-      return id === VIRTUAL_ID ? RESOLVED_VIRTUAL_ID : null;
+      if (id === VIRTUAL_ID) return RESOLVED_VIRTUAL_ID;
+      if (id === AAC_VIRTUAL_ID) return RESOLVED_AAC_VIRTUAL_ID;
+      return null;
     },
 
     load(id) {
+      if (id === RESOLVED_AAC_VIRTUAL_ID) {
+        // Every AAC game's vocabulary, keyed by game id, straight from game.json.
+        const map: Record<string, ReturnType<typeof aacVocabulary>> = {};
+        for (const g of discovered) {
+          const v = aacVocabulary(g.meta);
+          if (v.length) map[g.meta.id] = v;
+        }
+        return `export default ${JSON.stringify(map)};`;
+      }
       if (id !== RESOLVED_VIRTUAL_ID) return null;
       const pub = {
         name: cfg.name,
@@ -225,6 +243,7 @@ export function games(): Plugin {
         apkUrl: cfg.apkUrl,
         theme: cfg.theme,
         audio: { defaultMutedOnDesktop: cfg.audio?.defaultMutedOnDesktop ?? false },
+        aac: { relay: cfg.aac?.relay ?? null },
       };
       return `export default ${JSON.stringify(pub)};`;
     },

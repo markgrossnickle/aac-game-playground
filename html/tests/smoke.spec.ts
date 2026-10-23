@@ -15,6 +15,8 @@ interface ManifestGame {
   version: string;
   files: string[];
   hidden?: boolean;
+  input?: string[];
+  aac?: { vocabulary: Array<string | { word: string; synonyms?: string[] }> };
 }
 interface Manifest {
   buildId: string;
@@ -181,6 +183,66 @@ for (const game of manifest.games) {
       await expect(page.locator("#sdk-update-banner")).toBeVisible({ timeout: 10_000 });
       expect(calls).toBeGreaterThanOrEqual(2);
       await context.close();
+    });
+  });
+}
+
+// AAC wiring, for every game whose game.json has "input": [..."aac"]. The
+// game's own tests/aac.spec.ts proves the words play the game; this proves the
+// framework contract for all of them: every declared word and synonym reaches
+// an action, nothing else does, and duplicates, late words and words sent
+// after sharing stopped are dropped.
+for (const game of manifest.games.filter((g) => g.input?.includes("aac"))) {
+  test.describe(`${game.id} AAC wiring`, () => {
+    const entries = (game.aac?.vocabulary ?? []).map((e) => (typeof e === "string" ? { word: e, synonyms: [] as string[] } : { word: e.word, synonyms: e.synonyms ?? [] }));
+
+    test("every vocabulary word and synonym reaches an action; other words do not", async ({ page }) => {
+      const errors: string[] = [];
+      page.on("pageerror", (e) => errors.push(e.message));
+      page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
+      await page.goto(`${game.route}?aac-test`);
+      await page.waitForFunction(() => (window as any).__aacTest);
+      const words = await page.evaluate(() => (window as any).__aacTest.words as string[]);
+      expect(words).toEqual(entries.map((e) => e.word));
+
+      for (const e of entries) {
+        for (const form of [e.word, ...e.synonyms]) {
+          const before = await page.evaluate(() => (window as any).__aacTest.handled.length as number);
+          await page.evaluate((w) => (window as any).__aacTest.say(w), form);
+          const handled = await page.evaluate(() => (window as any).__aacTest.handled as string[]);
+          expect(handled.length, `"${form}" should trigger the action for "${e.word}"`).toBe(before + 1);
+          expect(handled[handled.length - 1]).toBe(e.word);
+        }
+      }
+
+      const count = await page.evaluate(() => (window as any).__aacTest.handled.length as number);
+      await page.evaluate(() => (window as any).__aacTest.say("zz-not-a-word"));
+      expect(await page.evaluate(() => (window as any).__aacTest.handled.length)).toBe(count);
+      expect(await page.evaluate(() => (window as any).__aacTest.ignored)).toContain("zz not a word");
+      expect(errors, "AAC actions must be safe to call at any moment").toEqual([]);
+    });
+
+    test("duplicates, late words and words after sharing stopped are dropped", async ({ page }) => {
+      await page.goto(`${game.route}?aac-test`);
+      await page.waitForFunction(() => (window as any).__aacTest);
+      const word = entries[0]!.word;
+      const result = await page.evaluate((w) => {
+        const t = (window as any).__aacTest;
+        t.hello();
+        const start = t.handled.length;
+        const dup = t.event("symbol.select", { symbol: { text: w } });
+        t.raw(dup);
+        t.raw(dup);
+        const afterDup = t.handled.length - start;
+        t.raw(t.event("symbol.select", { symbol: { text: w } }, { ts: Date.now() - 60_000 }));
+        const afterLate = t.handled.length - start;
+        const inFlight = t.event("symbol.select", { symbol: { text: w } });
+        t.bye();
+        t.raw(inFlight);
+        const afterBye = t.handled.length - start;
+        return { afterDup, afterLate, afterBye, state: t.state };
+      }, word);
+      expect(result).toEqual({ afterDup: 1, afterLate: 1, afterBye: 1, state: "waiting" });
     });
   });
 }

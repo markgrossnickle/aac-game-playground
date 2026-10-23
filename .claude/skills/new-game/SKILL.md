@@ -13,6 +13,8 @@ in order; do not skip the checks.
 
 Read these files before writing any game code. They are short.
 
+- `docs/guides/AAC.md`: this playground's games can be played with words from
+  an AAC board. Read it first; most games here should support it.
 - `docs/guides/GAME-DESIGN.md`: what makes a small kids' game work (one verb,
   feedback, difficulty, players, sound as design).
 - `docs/guides/UI.md`: how it must look and behave on screen (scaling, minimal
@@ -27,6 +29,8 @@ Read these files before writing any game code. They are short.
 Ask only what the scaffold needs and the idea leaves open. Usually:
 
 - One or two players? (Two players means two clearly separate zones on one screen.)
+- Which words should play it from an AAC board? (Default: yes, with `--aac`.
+  Suggest core-board words like go, stop, more, again, colours, animals.)
 - Portrait, landscape or any?
 - Age range, and whether it needs voice or sound.
 
@@ -39,7 +43,7 @@ if the user said to just build it.
 From the repo root:
 
 ```bash
-node html/scripts/new-game.mjs <id> "Title" --players 1|2 --orientation any|portrait|landscape --emoji <one emoji> --author <github handle>
+node html/scripts/new-game.mjs <id> "Title" --aac --players 1|2 --orientation any|portrait|landscape --emoji <one emoji> --author <github handle>
 ```
 
 `<id>` is lowercase with hyphens. This creates `html/games/<id>/` and

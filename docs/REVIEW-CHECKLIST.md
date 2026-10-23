@@ -48,6 +48,19 @@ the merge. "Should" items are comments.
 11. **Docs.** `html/games/<id>/README.md` and `docs/games/<id>.md` describe the
     real game: controls, saved state, audio sources, gotchas.
 
+## Must (AAC games, `"input"` includes `"aac"`)
+
+12. **Touch too.** The whole game is playable without a board.
+13. **Words do what a tap does.** Each vocabulary word calls the same action as
+    its touch control; no separate AAC mode. Every action is safe at any
+    moment (before start, after game over).
+14. **Board words.** Words a child is likely to find on a core board; synonyms
+    cover the obvious alternatives; no sentences.
+15. **Gameplay test.** `tests/aac.spec.ts` proves the words play the game:
+    start, play, replay, ignored words, duplicates, late words, disconnects,
+    sharing off, and touch. CI also runs the framework's AAC wiring checks.
+16. **Nothing kept.** No logging or storing of what the child said.
+
 ## Should (comments, not blockers)
 
 - A clear loop in the first five seconds; feedback on every tap.

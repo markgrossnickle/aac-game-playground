@@ -36,6 +36,7 @@ function validateConfig() {
   if (!/^https:\/\/[^/]+$/.test(cfg.webUrl)) errors.push("webUrl must be an https origin with no path");
   if (!/^https:\/\/[^/]+$/.test(cfg.apkUrl)) errors.push("apkUrl must be an https origin with no path");
   if (!cfg.name || cfg.name.length > 40) errors.push("name is required (max 40 chars)");
+  if (typeof cfg.repository !== "string" || !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(cfg.repository)) errors.push("repository must be owner/repo (OWNER/REPO in the template)");
   if (!cfg.shortName || cfg.shortName.length > 12) errors.push("shortName is required (max 12 chars)");
   for (const k of ["maxGameMB", "maxFileMB", "maxFilesPerGame"]) {
     if (typeof cfg.budgets?.[k] !== "number") errors.push(`budgets.${k} must be a number`);

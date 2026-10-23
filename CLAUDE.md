@@ -1,5 +1,10 @@
 # CLAUDE.md
 
+This is the **AAC Game Playground**: games playable by touch and by words from
+an AAC board. AAC games use `playWithAac()` from the SDK and must ship
+`tests/aac.spec.ts`; read `docs/guides/AAC.md` before touching one. Scaffold
+them with `node html/scripts/new-game.mjs <id> "Title" --aac`.
+
 Guidance for Claude Code in this game bundle. Short on purpose: the detail lives
 in the files linked here, read them when the task touches their area.
 
@@ -17,8 +22,8 @@ cache. `docs/ARCHITECTURE.md` explains the whole flow.
   the process. A game PR changes only `html/games/<id>/` and `docs/games/<id>.md`;
   `tools/check-pr-scope.mjs` enforces it. Never register a game by hand in
   `vite.config.ts` or `index.html`; the plugin does that from `game.json`.
-- **Read the guides before writing game code:** `docs/guides/GAME-DESIGN.md`,
-  `docs/guides/UI.md`, `docs/guides/CODING.md`, `docs/guides/BUDGETS.md`; `ART.md` and `AUDIO.md` when
+- **Read the guides before writing game code:** `docs/guides/AAC.md` (AAC
+  games), `docs/guides/GAME-DESIGN.md`, `docs/guides/UI.md`, `docs/guides/CODING.md`, `docs/guides/BUDGETS.md`; `ART.md` and `AUDIO.md` when
   relevant. `templates/game/` is the worked example.
 - **Everything goes through the build.** Relative asset references,
   `new URL(..., import.meta.url)` or `import.meta.glob`; no `public/` games, no
@@ -26,7 +31,10 @@ cache. `docs/ARCHITECTURE.md` explains the whole flow.
 - **No sound on this machine during checks.** Smoke tests run headless and
   muted (`npm run smoke`). Never open a game in a browser that can play audio to
   "see if it works". Check audio files with ffmpeg numbers, not by listening.
-- **Shipping: `DEPLOY.md`.** Merging to `main` deploys on its own. Verify at the
+- **Fresh hosting per bundle, always.** Never point a bundle at a Vercel
+  project, domain or APK host another bundle or app has used.
+  `tools/check-hosting.mjs` enforces it before every deploy; never weaken it.
+- **Shipping: `DEPLOY.md`.** Merging to `main` deploys the commit CI tested. Verify at the
   real URL (`tools/verify-live.sh`), never from a workflow's green badge. Only
   native changes need the shim workflow, and a shim only installs if
   `versionCode` went up (the workflow bumps it).

@@ -118,6 +118,7 @@ function checkGame(dir) {
   let count = 0;
   let sawBoot = false;
   let sawModuleCode = false;
+  let sawAac = false;
   walk(dir, (file, st) => {
     const rel = relative(dir, file).replace(/\\/g, "/");
     const ext = extname(file).toLowerCase();
@@ -133,11 +134,17 @@ function checkGame(dir) {
     if (ext === ".gif") warn(id, `${rel}: prefer a sprite sheet or webp; gif is large and slow`);
     if (rel.startsWith("assets_raw/") || rel.includes("/raw/")) add(id, `${rel}: raw/source assets do not belong in the game folder`);
 
-    if (TEXT_EXT.has(ext) && ext !== ".svg" && ext !== ".md") {
+    // Playwright specs under tests/ run in Node, not in the game: they may use
+    // absolute routes and import @playwright/test, so the in-game rules skip them.
+    const isTest = rel.startsWith("tests/");
+    if (isTest && !/\.spec\.ts$/.test(rel)) add(id, `${rel}: only *.spec.ts files belong in tests/`);
+
+    if (TEXT_EXT.has(ext) && ext !== ".svg" && ext !== ".md" && !isTest) {
       const text = readFileSync(file, "utf8");
       if (/\.(ts|js|mjs)$/.test(ext)) {
         sawModuleCode = true;
         if (/\bbootGame\s*\(/.test(text)) sawBoot = true;
+        if (/\bplayWithAac\s*\(/.test(text)) sawAac = true;
         if (SDK_IMPORT.test(text) && !/from\s+["']\.\.\/\.\.\/\.\.\/src\/sdk/.test(text) && rel.split("/").length === 2) {
           warn(id, `${rel}: SDK import path looks wrong for a file in src/ (expected ../../../src/sdk)`);
         }
@@ -156,6 +163,12 @@ function checkGame(dir) {
       }
     }
   });
+  const wantsAac = Array.isArray(meta.input) && meta.input.includes("aac");
+  if (wantsAac && !sawAac) add(id, 'game.json "input" includes "aac" but the code never calls playWithAac() from the SDK');
+  if (!wantsAac && sawAac) add(id, 'calls playWithAac() but game.json "input" does not include "aac"');
+  if (wantsAac && !existsSync(join(dir, "tests", "aac.spec.ts"))) {
+    add(id, "AAC games need tests/aac.spec.ts: gameplay driven by words (start, play, replay, ignored words, duplicates, disconnects, sharing off). See docs/guides/AAC.md.");
+  }
   if (sawModuleCode && !sawBoot) add(id, "never calls bootGame() from the SDK (import { bootGame } from \"../../../src/sdk\")");
   if (count > budgets.maxFilesPerGame) add(id, `${count} files is over the ${budgets.maxFilesPerGame} file budget`);
   if (total > budgets.maxGameMB * 1024 * 1024) add(id, `${(total / 1048576).toFixed(1)} MB is over the ${budgets.maxGameMB} MB per-game budget`);

@@ -1,4 +1,4 @@
-package com.example.gamebundle;
+package com.markgrossnickle.aacgameplayground;
 
 import com.getcapacitor.BridgeActivity;
 

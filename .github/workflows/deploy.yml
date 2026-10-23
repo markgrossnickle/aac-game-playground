@@ -1,36 +1,37 @@
 name: Deploy
 
-# Every push to main (that is, every merged PR) ships the whole bundle to the
-# web project, then verifies at the real URL that the live buildId matches.
-# Installed apps and open sites pick it up on their next focus (ARCHITECTURE.md).
+# Runs only after CI succeeded on a push to main, and deploys THAT commit:
+#   1. check out the exact commit CI tested (workflow_run.head_sha),
+#   2. prove the hosting is this bundle's own, fresh project (tools/check-hosting.mjs),
+#   3. build with `vercel build` and require the same buildId CI produced,
+#   4. upload exactly that build output (`vercel deploy --prebuilt`),
+#   5. verify the live site serves that buildId.
+# Merging a PR is the only way to deploy; there is no manual trigger.
 #
 # Secrets (docs/SPINOFF.md): VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID.
-# Without them the job stops with a notice instead of failing.
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [main]
-  workflow_dispatch:
 
 permissions:
   contents: read
+  actions: read
 
-# Never two deploys at once; a later push waits for the earlier one.
 concurrency:
   group: deploy-production
   cancel-in-progress: false
 
 jobs:
   deploy:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
     runs-on: ubuntu-latest
     environment: production
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version-file: html/.nvmrc
-          cache: npm
-          cache-dependency-path: html/package-lock.json
-
       - name: Check secrets
         id: secrets
         env:
@@ -38,23 +39,36 @@ jobs:
         run: echo "ok=$OK" >> "$GITHUB_OUTPUT"
       - name: Not configured
         if: steps.secrets.outputs.ok != 'true'
-        run: echo "::notice::VERCEL_TOKEN / VERCEL_ORG_ID / VERCEL_PROJECT_ID are not set; skipping deploy. See docs/SPINOFF.md."
+        run: echo "::notice::VERCEL_TOKEN / VERCEL_ORG_ID / VERCEL_PROJECT_ID are not set; nothing deployed. See docs/SPINOFF.md."
 
-      - name: Config in sync and games conform (same gates as CI)
+      - name: Check out the commit CI tested
         if: steps.secrets.outputs.ok == 'true'
-        run: |
-          node tools/sync-config.mjs --check
-          node tools/check-games.mjs
-
-      - name: Build
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+      - uses: actions/setup-node@v4
         if: steps.secrets.outputs.ok == 'true'
-        working-directory: html
-        run: |
-          npm ci
-          npm run build
-          echo "BUILD_ID=$(node -p 'JSON.parse(require("fs").readFileSync("dist/games-manifest.json","utf8")).buildId')" >> "$GITHUB_ENV"
+        with:
+          node-version-file: html/.nvmrc
 
-      - name: Deploy to Vercel (prebuilt, production)
+      - name: Hosting is this bundle's own fresh project
+        if: steps.secrets.outputs.ok == 'true'
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: node tools/check-hosting.mjs --project web
+
+      - name: Fetch the build id CI recorded
+        if: steps.secrets.outputs.ok == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: build-id
+          path: ci-build
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+
+      - name: Build exactly what CI built
         if: steps.secrets.outputs.ok == 'true'
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
@@ -63,10 +77,20 @@ jobs:
         run: |
           npm i -g vercel@latest
           vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
-          # Vercel builds the project itself with vercel.json's buildCommand; we only
-          # verify afterwards that what went live is the same build id we produced.
-          vercel deploy --prod --yes --token="$VERCEL_TOKEN" > deploy-url.txt
-          echo "Deployed: $(cat deploy-url.txt)"
+          vercel build --prod --token="$VERCEL_TOKEN"
+          CI_ID=$(node -p 'JSON.parse(require("fs").readFileSync("ci-build/games-manifest.json","utf8")).buildId')
+          OUT_ID=$(node -p 'JSON.parse(require("fs").readFileSync(".vercel/output/static/games-manifest.json","utf8")).buildId')
+          echo "CI buildId $CI_ID, deploy buildId $OUT_ID"
+          [ "$CI_ID" = "$OUT_ID" ] || { echo "::error::the deploy build differs from the build CI tested"; exit 1; }
+          echo "BUILD_ID=$OUT_ID" >> "$GITHUB_ENV"
+
+      - name: Deploy that build
+        if: steps.secrets.outputs.ok == 'true'
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: vercel deploy --prebuilt --prod --yes --token="$VERCEL_TOKEN"
 
       - name: Verify at the real URL
         if: steps.secrets.outputs.ok == 'true'

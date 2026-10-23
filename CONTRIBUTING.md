@@ -6,16 +6,30 @@ own folder.
 1. **Read the guides** (about ten minutes): `docs/guides/GETTING-STARTED.md`,
    then `GAME-DESIGN.md`, `UI.md`, `CODING.md`, `BUDGETS.md`. `ART.md` and `AUDIO.md` if
    your game has pictures or sound.
-2. **Scaffold**: `node html/scripts/new-game.mjs <id> "Title"` creates
+2. **Get the code and the test browser** (once):
+   ```bash
+   # Fork the repository on GitHub, then:
+   git clone https://github.com/<you>/<repo>.git && cd <repo>
+   git remote add upstream https://github.com/<owner>/<repo>.git
+   cd html && npm ci && npx playwright install --with-deps chromium && cd ..
+   ```
+   Maintainers with write access can skip the fork and branch directly.
+3. **Scaffold**: `node html/scripts/new-game.mjs <id> "Title"` creates
    `html/games/<id>/` from `templates/game/` and `docs/games/<id>.md`.
    Work on a branch named `game/<id>`.
-3. **Build it** inside `html/games/<id>/` only. Call `bootGame()` first and use
+4. **Build it** inside `html/games/<id>/` only. Call `bootGame()` first and use
    the SDK (`html/src/sdk/`) for audio, storage, sizing. No packages, no network.
-4. **Check it**: `node tools/check-games.mjs <id>` and
+5. **Check it**: `node tools/check-games.mjs <id>` and
    `cd html && npm run build && npm run smoke -- --grep <id>`. Both must pass.
    The smoke test runs headless and muted; please do the same.
-5. **Open a PR** with the template filled in. CI runs the same checks plus an
-   automated review; a maintainer plays it and merges. Merging deploys.
+6. **Open a PR** from your fork's `game/<id>` branch to `main`, with the
+   template filled in. CI runs the same checks. The automated review runs by
+   itself for branches of this repository; for a fork, GitHub keeps secrets
+   away from the workflow, so a maintainer starts it by commenting
+   `/claude-review`. A maintainer plays the game, approves and merges. Merging
+   deploys, after CI passes again on `main`.
+
+Keep your fork current with `git fetch upstream && git rebase upstream/main`.
 
 Using Claude Code? `/new-game` walks through all of this and `/check-game <id>`
 runs the review locally.

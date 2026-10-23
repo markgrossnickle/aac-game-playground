@@ -3,6 +3,7 @@
 // behaviour: filter tabs, favorites, offline caching, the update check and the
 // hold-to-exit button (native only). Everything degrades to plain links.
 import "./close-app";
+import { initAacConnect } from "./aac-connect";
 import { cachedGameIds, ensureHubCached, isGameCached, pruneRuntimeCache, refreshCachedGames, registerServiceWorker } from "../sdk/offline";
 import { startUpdateCheck } from "../sdk/update";
 import type { GamesManifest } from "../sdk/manifest";
@@ -10,7 +11,7 @@ import type { GamesManifest } from "../sdk/manifest";
 const FAVORITES_KEY = "bundle:favorites";
 const NEW_WINDOW_DAYS = 30;
 
-type TabId = "all" | "new" | "favorites";
+type TabId = "all" | "new" | "aac" | "favorites";
 
 function readFavorites(): Set<string> {
   try {
@@ -70,6 +71,7 @@ function initCards(): HTMLElement[] {
   const tabs: { id: TabId; label: string }[] = [
     { id: "all", label: "All games" },
     { id: "new", label: "New" },
+    ...(cards.some((c) => c.dataset.aac) ? [{ id: "aac" as TabId, label: "AAC" }] : []),
     { id: "favorites", label: "Favorites" },
   ];
   const tabBar = document.createElement("nav");
@@ -123,6 +125,7 @@ function initCards(): HTMLElement[] {
   let currentTab: TabId = "all";
   function matches(card: HTMLElement): boolean {
     if (currentTab === "new") return cardIsNew(card);
+    if (currentTab === "aac") return !!card.dataset.aac;
     if (currentTab === "favorites") return favorites.has(cardKey(card));
     return true;
   }
@@ -183,6 +186,7 @@ function showBanner(text: string, onClick?: () => void): void {
 
 function init(): void {
   const cards = initCards();
+  initAacConnect();
   void registerServiceWorker();
 
   let hubVersion: string | null = null;

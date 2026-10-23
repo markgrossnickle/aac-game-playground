@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <title>__GAME_TITLE__</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <!-- bootGame() adds the Back link. Keep the top-left 92x60 px corner clear. -->
+
+    <div class="hud">
+      <div class="score" aria-live="polite">Popped: <span id="score">0</span></div>
+      <button id="mute-toggle" type="button" aria-pressed="false">
+        <span class="mute-icon">🔊</span>
+      </button>
+    </div>
+    <div id="heard" class="heard" aria-live="polite"></div>
+
+    <canvas id="stage" aria-label="Game area"></canvas>
+
+    <div id="start" class="overlay">
+      <div class="overlay__card">
+        <div class="overlay__title">🫧 __GAME_TITLE__</div>
+        <p class="overlay__text">Tap the bubbles, or say "pop"!</p>
+        <button id="start-btn" class="big" type="button">Go</button>
+      </div>
+    </div>
+
+    <div id="over" class="overlay" hidden>
+      <div class="overlay__card">
+        <div class="overlay__title">🎉</div>
+        <button id="again-btn" class="big" type="button">Again</button>
+      </div>
+    </div>
+
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>

@@ -22,3 +22,4 @@ export { fetchManifest, currentGameId, type GamesManifest, type GameEntry } from
 export { createClipBank, buildClipUrlMap, slugify, type ClipBank, type ClipHandle } from "./clips";
 export { createVoiceController, type VoiceController, type VoiceEngine, type SpeakOpts } from "./voice";
 export { createVoiceClips, type VoiceClips } from "./voiceClips";
+export { playWithAac, exposeStateForTests, readPairing, writePairing, clearPairing, AAC_PAIRING_KEY, type AacSession, type AacState, type PlayWithAacOptions, type AacTestHook, type StoredPairing } from "./aac";

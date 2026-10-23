@@ -380,3 +380,74 @@ body {
   opacity: 0.6;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
+
+/* AAC: card badge, hub connect button, pairing dialog. */
+.card-aac {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #4fd1a5;
+  color: #06111f;
+  font-size: 11px;
+  font-weight: 700;
+}
+.aac-connect {
+  margin-top: 12px;
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--tile);
+  color: var(--fg);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.aac-connect.is-paired {
+  background: #4fd1a5;
+  border-color: #4fd1a5;
+  color: #06111f;
+}
+.aac-dialog {
+  width: min(92vw, 420px);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--tile);
+  color: var(--fg);
+  padding: 24px;
+  text-align: center;
+}
+.aac-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.6);
+}
+.aac-code {
+  font: 800 clamp(40px, 12vw, 56px) / 1.1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 0.08em;
+  margin: 12px 0;
+}
+.aac-hint,
+.aac-status {
+  color: var(--muted);
+  font-size: 14px;
+}
+.aac-row {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+.aac-btn {
+  min-height: 44px;
+  padding: 0 20px;
+  border-radius: 999px;
+  border: 0;
+  background: var(--accent);
+  color: #0b1220;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.aac-btn--danger {
+  background: #f0806b;
+}

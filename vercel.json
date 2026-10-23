@@ -6,7 +6,7 @@
   "redirects": [
     {
       "source": "/games.apk",
-      "destination": "https://example-bundle-apk.vercel.app/games.apk",
+      "destination": "https://aac-game-playground-apk.vercel.app/games.apk",
       "permanent": false
     }
   ],

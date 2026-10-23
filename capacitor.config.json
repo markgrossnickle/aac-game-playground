@@ -1,9 +1,9 @@
 {
-  "appId": "com.example.gamebundle",
-  "appName": "Game Bundle",
+  "appId": "com.markgrossnickle.aacgameplayground",
+  "appName": "AAC Game Playground",
   "webDir": "html/shell",
   "server": {
-    "url": "https://example-bundle.vercel.app",
+    "url": "https://aac-game-playground.vercel.app",
     "cleartext": false
   }
 }

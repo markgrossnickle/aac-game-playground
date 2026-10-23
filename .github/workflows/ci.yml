@@ -63,6 +63,14 @@ jobs:
         run: npm run build
       - name: Record the build id
         run: node -p 'JSON.parse(require("fs").readFileSync("dist/games-manifest.json","utf8")).buildId'
+      # deploy.yml rebuilds this exact commit and refuses to ship unless its
+      # buildId matches this one, so what goes live is what was tested here.
+      - name: Keep the build id for the deploy
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-id
+          path: html/dist/games-manifest.json
+          retention-days: 7
       - name: Scaffold a throwaway game so the pipeline is exercised even with no games committed
         if: ${{ !contains(github.head_ref, 'game/') }}
         run: |

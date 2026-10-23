@@ -6,7 +6,10 @@ import { defineConfig } from "@playwright/test";
 const PORT = 4173;
 
 export default defineConfig({
-  testDir: "./tests",
+  // The framework suite (tests/) plus each game's own specs
+  // (games/<id>/tests/*.spec.ts, required for AAC games).
+  testDir: ".",
+  testMatch: ["tests/**/*.spec.ts", "games/*/tests/**/*.spec.ts"],
   fullyParallel: false,
   workers: 1,
   forbidOnly: !!process.env.CI,
@@ -25,7 +28,9 @@ export default defineConfig({
   webServer: {
     command: `npx vite preview --port ${PORT} --strictPort --host 127.0.0.1`,
     url: `http://127.0.0.1:${PORT}/games-manifest.json`,
-    reuseExistingServer: !process.env.CI,
+    // Never reuse a server already on the port: it may be another checkout's
+    // build. --strictPort makes a busy port fail loudly instead.
+    reuseExistingServer: false,
     timeout: 60_000,
   },
 });

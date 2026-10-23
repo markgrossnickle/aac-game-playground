@@ -1,49 +1,67 @@
-# Game Bundle Template
+# AAC Game Playground
 
-A framework for shipping many small web games as one product: a web site, a
-PWA, and a thin Android app, all fed from one repository. Anyone with Claude can
-describe a game and end up with a pull request; CI builds it, checks it against
-the house rules, reviews it, and a maintainer merges it. Installed apps and open
-sites pick up the new game on their next focus, offline copies update themselves.
+Small games that can be played by touch, with an AAC (Augmentative and
+Alternative Communication) board such as [Cboard](https://github.com/cboard-org/cboard),
+or both. A child picks words on their board ("go", "pop", "again") and the game
+acts on them. Everything ships as one web site, an installable PWA, and a thin
+Android app, and new games arrive on every device the next time it comes to
+the front.
 
-This repository is the **template**. A client bundle is made from it by
-following `docs/SPINOFF.md` (one config file, two hosting projects, a handful
-of secrets). Games are never added here; they are added to a spinoff.
+Live site: https://aac-game-playground.vercel.app (first deploy pending, see
+Status). Android installer: `/download` on the live site.
 
-## What is in the box
+**Anyone can contribute a game.** With Claude Code, describe the game and run
+`/new-game`; you get a pull request. Without it, follow
+[CONTRIBUTING.md](CONTRIBUTING.md). CI builds and tests it, an automated review
+comments, a maintainer plays it and merges, and merging deploys.
 
-| Path | What |
+## How AAC input works
+
+- Games declare their words in `game.json` and map each to an action with one
+  SDK call, `playWithAac()`. Touch always works too.
+- The AAC connection uses the open
+  [aac-bridge](https://github.com/markgrossnickle/aac-bridge) protocol (pinned
+  to `v0.2.0`). A device pairs once in the hub with a one-time code typed into
+  the AAC app. Nothing is shared until the AAC user turns sharing on, and
+  nothing arrives after they turn it off.
+- Every AAC game ships a gameplay test proving the words play it: start,
+  play, replay, ignored words, duplicates, disconnects, sharing off.
+
+Read [docs/guides/AAC.md](docs/guides/AAC.md) before building an AAC game.
+
+## Start here
+
+| If you want to | Read |
 |---|---|
-| `bundle.config.json` | The only file that names the client: title, app id, URLs, theme, budgets. |
-| `html/` | The Vite app: hub (`index.html`), games (`games/<id>/`), SDK (`src/sdk/`), service worker (`public/sw.js`), build plugin (`plugins/games.ts`). |
-| `templates/game/` | The scaffold every new game starts from (`node html/scripts/new-game.mjs`). |
-| `tools/` | CI gates: `check-games.mjs` (conformity), `check-pr-scope.mjs`, `sync-config.mjs`, `verify-live.sh`, `gen-icons.mjs`. |
-| `.github/workflows/` | `ci.yml` (lint, build, muted smoke test), `claude-review.yml`, `deploy.yml` (on merge to main), `shim.yml` (Android APK, manual). |
-| `.claude/skills/` | `/new-game` and `/check-game` for contributors using Claude Code. |
-| `android/`, `apk-host/` | The Capacitor shim (its WebView loads the live site) and the tiny project that hosts the APK. |
-| `docs/` | `ARCHITECTURE.md`, `SPINOFF.md`, `REVIEW-CHECKLIST.md`, `guides/` (GAME-DESIGN, UI, CODING, ART, AUDIO, BUDGETS: what every game author and bot reads first). |
-
-## Quick start (maintainer)
+| Add a game | [docs/guides/GETTING-STARTED.md](docs/guides/GETTING-STARTED.md), then [AAC.md](docs/guides/AAC.md), [GAME-DESIGN.md](docs/guides/GAME-DESIGN.md), [UI.md](docs/guides/UI.md), [CODING.md](docs/guides/CODING.md) |
+| Review a game | [docs/REVIEW-CHECKLIST.md](docs/REVIEW-CHECKLIST.md) |
+| Understand the system | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
+| Ship or debug a deploy | [DEPLOY.md](DEPLOY.md) |
 
 ```bash
-cd html && npm ci && npm run dev        # hub at http://localhost:5173 (empty until a game exists)
-node html/scripts/new-game.mjs demo "Demo"   # scaffold a game, then open /games/demo/
-node tools/check-games.mjs              # conformity lint
-cd html && npm run build && npm run smoke    # production build + headless muted smoke test
+cd html && npm ci && npx playwright install chromium && cd ..   # once
+node html/scripts/new-game.mjs my-game "My Game" --aac          # scaffold an AAC game
+cd html && npm run dev                                          # http://localhost:5173/games/my-game/
 ```
 
-Contributors start at `docs/guides/GETTING-STARTED.md`. Shipping is in
-`DEPLOY.md`. How it all fits is in `docs/ARCHITECTURE.md`.
+## Hosting
 
-## Principles
+This bundle has its own hosting, created for it and used by nothing else:
 
-- **One folder per game, nothing shared edited.** A game PR touches
-  `html/games/<id>/` and `docs/games/<id>.md` only. CI rejects anything else.
-- **Everything through the build.** Every asset is a hashed file in the build
-  graph, so the per-game precache list is exact and nothing 404s offline.
-- **Config, not forks.** Branding lives in `bundle.config.json`; the framework
-  never contains a client name.
-- **Verify at the real URL.** A green deploy log is not proof; `verify-live.sh` is.
-- **No sound on the build machine.** Smoke tests run headless with audio muted.
+| What | Where |
+|---|---|
+| Web project | Vercel `aac-game-playground` -> https://aac-game-playground.vercel.app |
+| APK host | Vercel `aac-game-playground-apk` -> https://aac-game-playground-apk.vercel.app |
+| AAC relay | not deployed yet (`bundle.config.json` `aac.relay` is `null`) |
 
-License: MIT (see `LICENSE`).
+Deploys refuse any other project (`tools/check-hosting.mjs`).
+
+## Status
+
+- Hosting projects exist; the repository needs a `VERCEL_TOKEN` secret before
+  the first deploy runs.
+- The AAC relay needs a host that keeps WebSockets open; until then games take
+  AAC words from the dev panel, tests and same-site pages.
+- No games yet. Be the first.
+
+Built from a private game bundle template. License: MIT.

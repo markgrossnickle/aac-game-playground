@@ -121,6 +121,14 @@ jobs:
           OK: ${{ secrets.VERCEL_TOKEN != '' && secrets.VERCEL_ORG_ID != '' && secrets.VERCEL_APK_PROJECT_ID != '' }}
         run: echo "ok=$OK" >> "$GITHUB_OUTPUT"
 
+      - name: APK host is this bundle's own fresh project
+        if: ${{ inputs.publish && steps.secrets.outputs.ok == 'true' }}
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_APK_PROJECT_ID: ${{ secrets.VERCEL_APK_PROJECT_ID }}
+        run: node tools/check-hosting.mjs --project apk
+
       - name: Publish to the APK host project
         if: ${{ inputs.publish && steps.secrets.outputs.ok == 'true' }}
         env:

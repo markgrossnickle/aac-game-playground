@@ -1,11 +1,12 @@
 {
   "$schema": "./schemas/bundle.config.schema.json",
-  "name": "Game Bundle",
-  "shortName": "Bundle",
-  "description": "A growing collection of small games in one app.",
-  "appId": "com.example.gamebundle",
-  "webUrl": "https://example-bundle.vercel.app",
-  "apkUrl": "https://example-bundle-apk.vercel.app",
+  "name": "AAC Game Playground",
+  "shortName": "AAC Games",
+  "description": "Small games you can play with an AAC board, by touch, or both.",
+  "repository": "markgrossnickle/aac-game-playground",
+  "appId": "com.markgrossnickle.aacgameplayground",
+  "webUrl": "https://aac-game-playground.vercel.app",
+  "apkUrl": "https://aac-game-playground-apk.vercel.app",
   "theme": {
     "background": "#0e1116",
     "accent": "#58a6ff"
@@ -17,5 +18,8 @@
   },
   "audio": {
     "defaultMutedOnDesktop": false
+  },
+  "aac": {
+    "relay": null
   }
 }

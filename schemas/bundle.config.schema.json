@@ -5,43 +5,123 @@
   "description": "The one file that names a client's bundle. Everything branded reads from here.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["name", "shortName", "description", "appId", "webUrl", "apkUrl", "theme", "budgets"],
+  "required": [
+    "name",
+    "shortName",
+    "description",
+    "repository",
+    "appId",
+    "webUrl",
+    "apkUrl",
+    "theme",
+    "budgets"
+  ],
   "properties": {
-    "$schema": { "type": "string" },
-    "name": { "type": "string", "minLength": 1, "maxLength": 40, "description": "App and site title." },
-    "shortName": { "type": "string", "minLength": 1, "maxLength": 12, "description": "Home-screen label." },
-    "description": { "type": "string", "maxLength": 200 },
+    "$schema": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 40,
+      "description": "App and site title."
+    },
+    "shortName": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 12,
+      "description": "Home-screen label."
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 200
+    },
+    "repository": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",
+      "description": "owner/repo of THIS bundle on GitHub. Deploys refuse to run from any other repository, and the hosting projects are claimed for it (tools/check-hosting.mjs). OWNER/REPO in the template."
+    },
     "appId": {
       "type": "string",
       "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
       "description": "Android application id (reverse domain)."
     },
-    "webUrl": { "type": "string", "pattern": "^https://[^/]+$", "description": "Origin the shim loads and the site is served from. No trailing slash." },
-    "apkUrl": { "type": "string", "pattern": "^https://[^/]+$", "description": "Origin that hosts /games.apk. No trailing slash." },
+    "webUrl": {
+      "type": "string",
+      "pattern": "^https://[^/]+$",
+      "description": "Origin of THIS bundle's own, freshly created web project. Never another bundle's. No trailing slash."
+    },
+    "apkUrl": {
+      "type": "string",
+      "pattern": "^https://[^/]+$",
+      "description": "Origin of THIS bundle's own, freshly created APK host project. No trailing slash."
+    },
     "theme": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["background", "accent"],
+      "required": [
+        "background",
+        "accent"
+      ],
       "properties": {
-        "background": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
-        "accent": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" }
+        "background": {
+          "type": "string",
+          "pattern": "^#[0-9a-fA-F]{6}$"
+        },
+        "accent": {
+          "type": "string",
+          "pattern": "^#[0-9a-fA-F]{6}$"
+        }
       }
     },
     "budgets": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["maxGameMB", "maxFileMB", "maxFilesPerGame"],
+      "required": [
+        "maxGameMB",
+        "maxFileMB",
+        "maxFilesPerGame"
+      ],
       "properties": {
-        "maxGameMB": { "type": "number", "minimum": 1 },
-        "maxFileMB": { "type": "number", "minimum": 0.1 },
-        "maxFilesPerGame": { "type": "integer", "minimum": 1 }
+        "maxGameMB": {
+          "type": "number",
+          "minimum": 1
+        },
+        "maxFileMB": {
+          "type": "number",
+          "minimum": 0.1
+        },
+        "maxFilesPerGame": {
+          "type": "integer",
+          "minimum": 1
+        }
       }
     },
     "audio": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "defaultMutedOnDesktop": { "type": "boolean" }
+        "defaultMutedOnDesktop": {
+          "type": "boolean"
+        }
+      }
+    },
+    "aac": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "AAC input (aac-bridge). relay: base URL of this bundle's own aac-bridge relay, or null until one is deployed; without it games still take AAC input from the dev panel and same-site pages.",
+      "properties": {
+        "relay": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "pattern": "^https://[^/]+$"
+            }
+          ]
+        }
       }
     }
   }

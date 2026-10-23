@@ -13,8 +13,12 @@ Authoritative. If another file disagrees, this one wins. No em dashes in docs.
    changes need no reinstall.** Only native changes (app name, icon,
    permissions, Capacitor plugins or versions, `appId`, `webUrl`) need a new shim,
    and a shim installs only if `versionCode` went UP (the workflow bumps it).
-4. Merging to `main` runs `.github/workflows/deploy.yml`: build, deploy to the
-   web project, then `tools/verify-live.sh` confirms the live `buildId`.
+4. Merging to `main` runs CI; only when CI passes does
+   `.github/workflows/deploy.yml` run. It checks out the commit CI tested,
+   proves the hosting is this bundle's own fresh project
+   (`tools/check-hosting.mjs`), builds with `vercel build`, refuses to continue
+   unless the buildId equals CI's, uploads that build (`--prebuilt`), and
+   `tools/verify-live.sh` confirms the live `buildId`.
 5. Every open page re-reads `games-manifest.json` on focus. The hub reloads when
    it changed, cached games refresh in the background, a game in play shows a
    tap-to-update banner. Details: `docs/ARCHITECTURE.md`.
@@ -29,6 +33,11 @@ Authoritative. If another file disagrees, this one wins. No em dashes in docs.
 
 Neither project is connected to GitHub's Vercel integration. Every deploy is a
 CLI upload by a workflow, so there is exactly one path.
+
+Both projects are created new for this bundle and claimed by it on first
+deploy. A project that another repository claimed, or that was ever deployed
+before being claimed, is refused. Never reuse hosting from another bundle or
+app (docs/SPINOFF.md, "The one rule about hosting").
 
 ## Content change vs native change
 
@@ -51,11 +60,10 @@ Native gotchas that have bitten before:
 ## The flow
 
 ```sh
-# 1. land the change on main through a PR (CI must be green)
-# 2. deploy.yml runs by itself; watch it in the Actions tab
+# 1. land the change on main through a PR (protected: review + CI)
+# 2. CI passes on main, then deploy.yml runs by itself; watch the Actions tab
 # 3. VERIFY at the real URL (not optional):
-tools/verify-live.sh            # compares live buildId to html/dist (build first) or
-tools/verify-live.sh <buildId>  # to the id the workflow printed
+tools/verify-live.sh <buildId>  # the id the deploy run printed
 ```
 
 Native change: after step 3, Actions > Shim APK > Run workflow (publish = true).
@@ -93,6 +101,9 @@ Then on a device: bring the app to the foreground (or relaunch) and look.
 - Do NOT say "shipped" without fetching the real URL and quoting the buildId.
 - Do NOT ship a shim without a `versionCode` increase.
 - Do NOT commit an APK (`*.apk` is gitignored) or re-include one in `.vercelignore`.
-- Do NOT create another APK, download URL or hosting project.
+- Do NOT reuse hosting: no project, domain or APK host from any other bundle
+  or app. Create new ones per bundle; `check-hosting` refuses anything else.
+- Do NOT create a second APK, download URL or hosting project for the same bundle.
 - Do NOT put a game anywhere but `html/games/<id>/`.
 - Do NOT run two deploys at once (the workflow's concurrency group prevents it).
+- Do NOT deploy by hand to skip CI; deploy.yml only ships a commit CI passed.

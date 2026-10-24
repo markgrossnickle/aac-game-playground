@@ -44,7 +44,15 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
-      - uses: android-actions/setup-android@v3
+      # The ubuntu runner ships the Android SDK (ANDROID_HOME). setup-android@v3
+      # fails on current images (it asks for the retired 'tools' package), so
+      # use the preinstalled SDK and add only what this build compiles against.
+      - name: Android SDK (preinstalled on the runner)
+        run: |
+          SDKM=$(ls -d "$ANDROID_HOME"/cmdline-tools/*/bin/sdkmanager | sort -V | tail -1)
+          echo "ANDROID_HOME=$ANDROID_HOME, sdkmanager=$SDKM"
+          yes | "$SDKM" --licenses > /dev/null || true
+          "$SDKM" --install "platforms;android-34" "build-tools;34.0.0" > /dev/null
 
       - name: Apply bundle.config.json to the Android project
         run: |

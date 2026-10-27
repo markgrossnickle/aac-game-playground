@@ -22,7 +22,7 @@ import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import WebSocket from "ws";
 import { claimPairing, createAacEmitter, relayTransport, revokePairing, type AacEmitter, type Transport } from "aac-bridge";
-import { createRelay } from "aac-bridge/relay";
+import { createRelay, lanAddresses } from "aac-bridge/relay";
 
 interface ManifestGame {
   id: string;
@@ -66,14 +66,19 @@ test.beforeAll(async () => {
   const manifest = JSON.parse(readFileSync(join(fixture.dist, "games-manifest.json"), "utf8")) as { games: ManifestGame[] };
   aacGame = manifest.games.find((g) => g.id === FIXTURE_ID)!;
   expect(aacGame?.aac?.vocabulary?.length, "the scaffolded AAC game is in the fixture build").toBeGreaterThan(0);
-  relay = createRelay({ port: 0, host: "127.0.0.1", serveDir: fixture.dist, log: () => {} });
-  await relay.ready;
+  await startRelay(0);
   origin = `http://127.0.0.1:${relay.port}`;
+});
+
+/** The relay as `npm run local` runs it: serving the site, discovery on, remembered pairings saved. */
+async function startRelay(port: number): Promise<void> {
+  relay = createRelay({ port, host: "127.0.0.1", serveDir: fixture!.dist, stateFile: join(fixture!.site, "relay-pairings.json"), log: () => {} });
+  await relay.ready;
   // Tag browser sockets so a test can cut only the game page's own link.
   relay.wss.on("connection", (socket, req) => {
     (socket as unknown as { fromBrowser: boolean }).fromBrowser = /Chrome/.test(String(req.headers["user-agent"]));
   });
-});
+}
 test.afterAll(async () => {
   await relay?.close();
   if (fixture) {
@@ -252,11 +257,11 @@ test.describe("AAC over a real relay", () => {
       const aac = await phone.newPage();
       await aac.goto(`${origin}/aac-bridge/examples/aac-app.html`);
       await aac.locator("#code").fill(code);
-      await aac.getByRole("button", { name: "Connect" }).click();
-      await expect(aac.locator("#status")).toHaveText("connected, not sharing");
+      await aac.getByRole("button", { name: "Connect", exact: true }).click();
+      await expect(aac.locator("#status")).toHaveText(/^connected, not sharing/);
       await expect(aac.getByLabel("Only the game's words")).toBeChecked();
       await aac.getByLabel("Share what I say with the game").check();
-      await expect(aac.locator("#status")).toHaveText("sharing the game's words");
+      await expect(aac.locator("#status")).toHaveText(/^sharing the game's words/);
 
       await expect(page.locator(".aac-status")).toHaveText("Connected to example-aac.");
       await page.getByRole("button", { name: "Done" }).click();
@@ -273,6 +278,129 @@ test.describe("AAC over a real relay", () => {
       await page.waitForTimeout(300);
       expect(await handledCount(page)).toBe(1);
 
+      await aac.getByRole("button", { name: "Forget this game" }).click();
+      await expect.poll(() => aacState(page)).toBe("ended");
+    } finally {
+      await phone.close();
+    }
+  });
+
+  test("tap to allow: the AAC page lists the game, the hub asks, Allow pairs with no code typed", async ({ page, browser }) => {
+    const phone = await phoneContext(browser);
+    try {
+      await page.goto(`${origin}/`);
+      await page.getByRole("button", { name: "Connect an AAC board" }).click();
+      await expect(page.locator(".aac-code")).toHaveText(/\d{3} \d{3}/);
+      await expect(page.locator(".aac-dialog")).toContainText("Games nearby");
+
+      const aac = await phone.newPage();
+      await aac.goto(`${origin}/aac-bridge/examples/aac-app.html`);
+      await aac.getByRole("button", { name: "AAC Game Playground" }).click();
+      await expect(aac.locator("#waiting")).toBeVisible();
+
+      const prompt = page.locator(".aac-request");
+      await expect(prompt).toContainText("example-aac");
+      await expect(prompt).toContainText("wants to connect");
+      await prompt.getByRole("button", { name: "Allow" }).click();
+      await expect(page.locator(".aac-status")).toHaveText("Paired with example-aac. Turn on sharing on the board to play.");
+      await expect(aac.locator("#status")).toHaveText(/^connected, not sharing \(AAC Game Playground\)/);
+      await page.getByRole("button", { name: "Done" }).click();
+      expect(await stored(page)).toContain('"remembered":true');
+      await expect(page.locator(".aac-connect")).toHaveText("AAC: example-aac");
+
+      await aac.getByLabel("Share what I say with the game").check();
+      await page.goto(`${origin}${aacGame.route}?test`);
+      await expect.poll(() => aacState(page), { timeout: 2_000 }).toBe("connected");
+      await aac.locator(`.tile[data-word="${firstWord(aacGame)}"]`).click();
+      await expect.poll(() => handledCount(page)).toBe(1);
+      await aac.getByRole("button", { name: "Forget this game" }).click();
+      await expect.poll(() => aacState(page)).toBe("ended");
+    } finally {
+      await phone.close();
+    }
+  });
+
+  test("tap to allow: Deny refuses the board, and the hub keeps waiting", async ({ page, browser }) => {
+    const phone = await phoneContext(browser);
+    try {
+      await page.goto(`${origin}/`);
+      await page.getByRole("button", { name: "Connect an AAC board" }).click();
+      await expect(page.locator(".aac-code")).toHaveText(/\d{3} \d{3}/);
+      const aac = await phone.newPage();
+      await aac.goto(`${origin}/aac-bridge/examples/aac-app.html`);
+      await aac.getByRole("button", { name: "AAC Game Playground" }).click();
+      await page.locator(".aac-request").getByRole("button", { name: "Deny" }).click();
+      await expect(aac.locator("#status")).toHaveText("the game said no");
+      await expect(page.locator(".aac-request")).toHaveCount(0);
+      await expect(page.locator(".aac-status")).toHaveText("Waiting for the AAC device…");
+      expect(await aac.evaluate(() => localStorage.getItem("aac-bridge-example-pairing"))).toBeNull();
+      await page.getByRole("button", { name: "Cancel" }).click();
+      await expect.poll(() => relay.size).toBe(0);
+    } finally {
+      await phone.close();
+    }
+  });
+
+  test("QR code: the hub shows one, and its link fills in the code on the AAC page without connecting", async ({ page, browser }) => {
+    test.skip(lanAddresses().length === 0, "this computer has no Wi-Fi address to put in a QR code");
+    const phone = await phoneContext(browser);
+    try {
+      const code = await startPairing(page);
+      const link = await page.locator(".aac-qr").getAttribute("data-link");
+      expect(link).toContain(`/aac-bridge/examples/aac-app.html#aac-pair=${code}&relay=`);
+      // Opened at 127.0.0.1, the hub puts the computer's Wi-Fi address in the
+      // QR (a phone cannot reach "127.0.0.1"), when the machine has one.
+      expect(link!.startsWith(`${origin}/`)).toBe(false);
+      await expect(page.locator(".aac-qr svg")).toBeVisible();
+
+      // A phone scanning it lands on the AAC page of that relay. Here the relay
+      // listens on 127.0.0.1 only, so open the same link at that address.
+      const aac = await phone.newPage();
+      await aac.goto(`${origin}/aac-bridge/examples/aac-app.html#aac-pair=${code}&relay=${encodeURIComponent(origin)}`);
+      await expect(aac.locator("#code")).toHaveValue(`${code.slice(0, 3)} ${code.slice(3)}`);
+      await expect(aac.locator("#status")).toHaveText("code from the game's QR: tap Connect");
+      expect(new URL(aac.url()).hash).toBe(""); // the code does not stay in the address bar
+      await page.waitForTimeout(300);
+      await expect(page.locator(".aac-status")).toHaveText("Waiting for the AAC device…"); // nothing connected by itself
+      await aac.getByRole("button", { name: "Connect", exact: true }).click();
+      await expect(aac.locator("#status")).toHaveText(/^connected, not sharing/);
+
+      // A link naming some other relay fills in nothing.
+      const other = await phone.newPage();
+      await other.goto(`${origin}/aac-bridge/examples/aac-app.html#aac-pair=123456&relay=${encodeURIComponent("http://192.0.2.1:8787")}`);
+      await expect(other.locator("#code")).toHaveValue("");
+      const saved = JSON.parse((await aac.evaluate(() => localStorage.getItem("aac-bridge-example-pairing"))) ?? "{}") as { senderToken?: string };
+      await revokePairing({ relay: origin, token: saved.senderToken! });
+    } finally {
+      await phone.close();
+    }
+  });
+
+  test("remembered: after a relay restart both sides are still paired, with no pairing step", async ({ page, browser }) => {
+    const phone = await phoneContext(browser);
+    try {
+      await page.goto(`${origin}/`);
+      await page.getByRole("button", { name: "Connect an AAC board" }).click();
+      await expect(page.locator(".aac-code")).toHaveText(/\d{3} \d{3}/);
+      const aac = await phone.newPage();
+      await aac.goto(`${origin}/aac-bridge/examples/aac-app.html`);
+      await aac.getByRole("button", { name: "AAC Game Playground" }).click();
+      await page.locator(".aac-request").getByRole("button", { name: "Allow" }).click();
+      await page.getByRole("button", { name: "Done" }).click();
+      await expect(aac.locator("#status")).toHaveText(/^connected, not sharing/);
+
+      // The computer's relay restarts (npm run local stopped and started again).
+      const port = relay.port;
+      await relay.close();
+      await startRelay(port);
+
+      await aac.reload();
+      await expect(aac.locator("#status")).toHaveText(/^connected, not sharing/); // no list, no code
+      await aac.getByLabel("Share what I say with the game").check();
+      await page.goto(`${origin}${aacGame.route}?test`);
+      await expect.poll(() => aacState(page), { timeout: 5_000 }).toBe("connected");
+      await aac.locator(`.tile[data-word="${firstWord(aacGame)}"]`).click();
+      await expect.poll(() => handledCount(page)).toBe(1);
       await aac.getByRole("button", { name: "Forget this game" }).click();
       await expect.poll(() => aacState(page)).toBe("ended");
     } finally {

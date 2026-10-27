@@ -452,3 +452,32 @@ body {
 .aac-btn--danger {
   background: #f0806b;
 }
+.aac-dialog {
+  max-height: 92vh;
+  overflow-y: auto;
+}
+.aac-qr {
+  width: min(56vw, 200px);
+  margin: 8px auto;
+  padding: 8px;
+  border-radius: 12px;
+  background: #fff; /* QR codes need a light background to scan */
+}
+.aac-qr svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.aac-hint {
+  overflow-wrap: anywhere;
+}
+.aac-request {
+  margin: 12px 0;
+  padding: 12px;
+  border-radius: 14px;
+  border: 2px solid var(--accent);
+}
+.aac-request p {
+  margin: 0 0 10px;
+  font-weight: 700;
+}

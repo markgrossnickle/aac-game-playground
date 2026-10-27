@@ -110,10 +110,13 @@ cd html && npm run build && npm run smoke -- --grep my-game
 ```
 
 A second suite, `tests/aac-relay.spec.ts`, runs the framework against a REAL
-relay serving the build: the hub's pairing dialog (Done keeps the pairing,
-Cancel and Escape revoke it), a game opened while sharing is on, game-to-game
-navigation, sharing off, an AAC app vanishing, revocation, and the example AAC
-page pairing from a second browser. It uses the first AAC game in the build.
+relay serving a built site: the hub's pairing dialog (Done keeps the pairing;
+Cancel and Escape revoke it, also while the code is still being requested), a
+game opened while sharing is on, game-to-game navigation, sharing off, an AAC
+app vanishing, the game's own relay link dropping, revocation, and the example
+AAC page pairing from a second browser. It builds its own throwaway site in a
+temporary folder, with one game made by the `--aac` scaffold, so it runs in
+full whatever games the bundle has, and checks the scaffold too.
 
 ## Local play: one Wi-Fi network, no internet
 

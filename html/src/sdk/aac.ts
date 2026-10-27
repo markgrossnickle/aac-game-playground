@@ -154,9 +154,15 @@ function isTestMode(): boolean {
  *   anyOpen: any channel (relay, same-site, test) is open
  */
 function mapState(paired: boolean, link: string | undefined, sharing: boolean, anyOpen: boolean): AacState {
-  if (paired && (link === "revoked" || link === "unauthorized")) return "ended";
+  if (paired) {
+    // A paired game's AAC app is on the relay, so the relay link itself must
+    // be up. An always-open same-site channel says nothing about it. When the
+    // link comes back, the relay replays the hello (or reports the app gone).
+    if (link === "revoked" || link === "unauthorized") return "ended";
+    if (link !== "open") return "offline";
+    return sharing ? "connected" : "waiting";
+  }
   if (sharing && anyOpen) return "connected";
-  if (paired) return link === "open" ? "waiting" : "offline";
   return anyOpen ? "waiting" : "offline";
 }
 
@@ -287,7 +293,12 @@ export function playWithAac(opts: PlayWithAacOptions): AacSession {
     opts.onState?.(state);
   };
 
-  listener.on("status", update);
+  listener.on("status", () => {
+    // Paired and the relay link dropped: forget sharing until the relay says
+    // again (it replays the hello on reconnect if the AAC app is still there).
+    if (pairing && listener.statusOf("relay") !== "open") sharing = false;
+    update();
+  });
   // hello: sharing started, a heartbeat, or the relay telling a game that
   // opened late that sharing is already on.
   listener.on("hello", ({ source }) => {

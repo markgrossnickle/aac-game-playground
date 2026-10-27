@@ -22,6 +22,6 @@
     "ws": "^8.18.0"
   },
   "dependencies": {
-    "aac-bridge": "github:markgrossnickle/aac-bridge#e4d5ec587e873a6b7504fe7bd016e995020d5118"
+    "aac-bridge": "github:markgrossnickle/aac-bridge#v0.3.1"
   }
 }

@@ -186,7 +186,7 @@ function showBanner(text: string, onClick?: () => void): void {
 
 function init(): void {
   const cards = initCards();
-  initAacConnect();
+  void initAacConnect();
   void registerServiceWorker();
 
   let hubVersion: string | null = null;

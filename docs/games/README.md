@@ -8,7 +8,7 @@ the same PR.
 
 | Dir (`html/games/<id>`) | Hub title | Doc |
 |---|---|---|
-| (none yet) | | |
+| `bubble-pop` | Bubble Pop | [bubble-pop.md](bubble-pop.md) |
 
 The build (`html/plugins/games.ts`) is the authority on which games exist;
 this table is for people. No em dashes.

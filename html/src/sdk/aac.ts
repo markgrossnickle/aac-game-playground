@@ -25,7 +25,6 @@ import {
   type AacListener,
   type SymbolDetail,
   type Transport,
-  type TransportState,
 } from "aac-bridge";
 import bundleConfig from "virtual:bundle-config";
 import vocabularies from "virtual:aac-vocabularies";
@@ -40,14 +39,48 @@ export interface StoredPairing {
   appName?: string;
 }
 
-/** The pairing the hub stored, if it is for this bundle's relay and not expired. */
+/** A relay serving this very site: local play (`npm run local`, aac-bridge relay `--serve`). */
+function sameOrigin(): string | null {
+  try {
+    return location.origin && location.origin !== "null" ? location.origin : null;
+  } catch {
+    return null;
+  }
+}
+
+let relayLookup: Promise<string | null> | null = null;
+
+/**
+ * The relay to pair with: this bundle's configured relay (bundle.config.json
+ * aac.relay), or, when the site itself is served by an aac-bridge relay on the
+ * local network, that one. Null when there is neither.
+ */
+export function findRelay(): Promise<string | null> {
+  if (bundleConfig.aac.relay) return Promise.resolve(bundleConfig.aac.relay);
+  relayLookup ??= (async () => {
+    const origin = sameOrigin();
+    if (!origin) return null;
+    try {
+      const res = await fetch(`${origin}/healthz`, { cache: "no-store", credentials: "omit" });
+      if (!res.ok) return null;
+      const body = (await res.json()) as { relay?: string };
+      return body && body.relay === "aac-bridge" ? origin : null;
+    } catch {
+      return null;
+    }
+  })();
+  return relayLookup;
+}
+
+/** The pairing the hub stored, if it is for this bundle's relay (or the local one) and not expired. */
 export function readPairing(): StoredPairing | null {
   try {
     const raw = localStorage.getItem(AAC_PAIRING_KEY);
     if (!raw) return null;
     const p = JSON.parse(raw) as StoredPairing;
     if (!p || typeof p.listenerToken !== "string" || typeof p.relay !== "string") return null;
-    if (p.relay !== bundleConfig.aac.relay || (p.expiresAt && p.expiresAt < Date.now())) {
+    const relayOk = p.relay === bundleConfig.aac.relay || p.relay === sameOrigin();
+    if (!relayOk || (p.expiresAt && p.expiresAt < Date.now())) {
       clearPairing();
       return null;
     }
@@ -100,18 +133,29 @@ export interface AacSession {
 
 const TEST_FLAG = "aac-test";
 
-function isTestMode(): boolean {
+function hasParam(name: string): boolean {
   try {
-    return new URLSearchParams(location.search).has(TEST_FLAG);
+    return new URLSearchParams(location.search).has(name);
   } catch {
     return false;
   }
 }
 
-function mapState(transport: string, sharing: boolean): AacState {
-  if (transport === "revoked" || transport === "unauthorized") return "ended";
-  if (transport !== "open") return "offline";
-  return sharing ? "connected" : "waiting";
+function isTestMode(): boolean {
+  return hasParam(TEST_FLAG);
+}
+
+/**
+ * Product state from separate facts, never from "some channel is open":
+ *   paired:  this device holds a relay pairing, and `link` is that relay's own state
+ *   sharing: an AAC app said hello (or the relay replayed it) and has not left
+ *   anyOpen: any channel (relay, same-site, test) is open
+ */
+function mapState(paired: boolean, link: string | undefined, sharing: boolean, anyOpen: boolean): AacState {
+  if (paired && (link === "revoked" || link === "unauthorized")) return "ended";
+  if (sharing && anyOpen) return "connected";
+  if (paired) return link === "open" ? "waiting" : "offline";
+  return anyOpen ? "waiting" : "offline";
 }
 
 function chip(): { set(state: AacState, app?: string): void; remove(): void } {
@@ -147,7 +191,7 @@ interface TestTransport extends Transport {
 }
 
 function testTransport(): TestTransport {
-  let handlers: { message?: (d: unknown, m?: object) => void; status?: (s: TransportState, d?: string) => void } = {};
+  let handlers: NonNullable<Parameters<Transport["start"]>[0]> = {};
   let up = true;
   return {
     name: "test",
@@ -209,18 +253,19 @@ export function playWithAac(opts: PlayWithAacOptions): AacSession {
   const test = isTestMode();
   const transports: Transport[] = [];
   const testT = test ? testTransport() : null;
+  const pairing = testT ? null : readPairing();
   if (testT) transports.push(testT);
   else {
     transports.push(broadcastTransport());
-    const pairing = readPairing();
     if (pairing) transports.push(relayTransport({ relay: pairing.relay, token: pairing.listenerToken }));
   }
 
-  const handled: string[] = [];
-  const ignored: string[] = [];
+  // Word history exists only for tests (?aac-test). In normal play a word is
+  // acted on and dropped, and words the game does not use are never kept.
+  const handled: string[] | null = testT ? [] : null;
+  const ignored: string[] | null = testT ? [] : null;
   let sharing = false;
   let appName: string | undefined;
-  let transportState = "connecting";
   let state: AacState = "offline";
   const indicator = opts.showChip === false ? null : chip();
 
@@ -231,7 +276,7 @@ export function playWithAac(opts: PlayWithAacOptions): AacSession {
   });
 
   const update = (): void => {
-    const next = mapState(transportState, sharing);
+    const next = mapState(Boolean(pairing), pairing ? listener.statusOf("relay") : undefined, sharing, listener.status === "open");
     if (next === state) return;
     state = next;
     document.documentElement.dataset.aac = state;
@@ -240,30 +285,41 @@ export function playWithAac(opts: PlayWithAacOptions): AacSession {
     opts.onState?.(state);
   };
 
-  listener.on("status", (s) => {
-    transportState = s.state;
-    update();
-  });
+  listener.on("status", update);
+  // hello: sharing started, a heartbeat, or the relay telling a game that
+  // opened late that sharing is already on.
   listener.on("hello", ({ source }) => {
     sharing = true;
     appName = source.app;
     update();
   });
-  listener.on("bye", () => {
+  const stopped = (): void => {
     sharing = false;
     update();
+  };
+  listener.on("bye", stopped);
+  listener.on("lost", stopped);
+  listener.on("presence", ({ present }) => {
+    if (!present) stopped();
   });
+  // With ?test (real connection, test observation) count handled words. A
+  // number only: which words were said is not kept.
+  const observe = hasParam("test");
+  const counter = window as unknown as { __aacHandledCount?: number };
+  if (observe) counter.__aacHandledCount = 0;
   listener.on("word", (d) => {
     const fn = d.word ? handlers.get(d.word) : undefined;
     if (!fn || !d.word) return;
-    handled.push(d.word);
+    handled?.push(d.word);
+    if (observe) counter.__aacHandledCount = (counter.__aacHandledCount ?? 0) + 1;
     fn(d);
   });
-  listener.on("symbol", (d) => {
-    if (!d.word) ignored.push(d.text);
-  });
+  if (ignored) {
+    listener.on("symbol", (d) => {
+      if (!d.word) ignored.push(d.text);
+    });
+  }
   if (opts.onPhrase) listener.on("phrase", (d) => opts.onPhrase!(d.text, d.words));
-  transportState = listener.status;
   update();
 
   if (import.meta.env.DEV && !test) {
@@ -304,10 +360,10 @@ export function playWithAac(opts: PlayWithAacOptions): AacSession {
         return state;
       },
       get handled() {
-        return [...handled];
+        return [...(handled ?? [])];
       },
       get ignored() {
-        return [...ignored];
+        return [...(ignored ?? [])];
       },
       words: vocabulary.words,
     };

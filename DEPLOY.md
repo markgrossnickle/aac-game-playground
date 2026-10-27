@@ -62,7 +62,7 @@ Native gotchas that have bitten before:
 ## The flow
 
 ```sh
-# 1. land the change on main through a PR (protected: review + the one CI job)
+# 1. land the change on main through a PR (protected: PR + the one CI job)
 # 2. on an up-to-date main, run the local gate (headless, muted):
 git switch main && git pull --ff-only
 (cd html && npm ci && npm run build && npm run smoke)

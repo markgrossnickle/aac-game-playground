@@ -108,7 +108,7 @@ the first time it is played online, and kept current, with no choices to make.
    (`docs/CI-BUDGET.md`); the PR states the local smoke results. A maintainer
    can ask for a Claude review against `docs/REVIEW-CHECKLIST.md` with a
    `/claude-review` comment.
-5. A maintainer merges (main is protected: PRs only, review, CI), runs the
+5. A maintainer merges (main is protected: PRs only, CI must pass), runs the
    local smoke on `main`, and starts `deploy.yml` by hand. It builds without
    secrets, then proves the hosting is this bundle's own (`check-hosting.mjs`),
    uploads exactly that build with a token scoped to the one web project

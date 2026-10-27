@@ -22,10 +22,11 @@ maintainer reviews (optionally asking Claude), plays it, merges and deploys.
   SDK call, `playWithAac()`. Touch always works too.
 - The AAC connection uses the open
   [aac-bridge](https://github.com/markgrossnickle/aac-bridge) protocol
-  (0.3.0). A device pairs once in the hub with a one-time code typed into the
-  AAC app. Nothing is shared until the AAC user turns sharing on, nothing
-  arrives after they turn it off, and the AAC app can share only the games'
-  words.
+  (0.4.0). A device pairs once in the hub: in the same room the AAC device
+  taps the game and the hub asks "Allow?", or scans a QR code; anywhere, a
+  6-digit code works. The pairing is remembered until someone disconnects.
+  Nothing is shared until the AAC user turns sharing on, nothing arrives
+  after they turn it off, and the AAC app can share only the games' words.
 - **Local play, no internet:** `cd html && npm run local` serves the games and
   a relay from a computer, and an AAC device on the same Wi-Fi drives them.
 - Every AAC game ships a gameplay test proving the words play it: start,

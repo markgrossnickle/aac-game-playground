@@ -52,11 +52,14 @@ everything a game author needs; the connection itself is the framework's job.
 
 ## What the framework handles
 
-- **Pairing.** Once per device, in the hub ("Connect AAC board"), when there
-  is a relay: this bundle's own (`bundle.config.json` `aac.relay`), or a
-  relay in the room serving the site (local play, below). The AAC app enters a
-  one-time code; nothing is shared until the user turns sharing on there. The
-  pairing carries the bundle's words, so the AAC app can share only those.
+- **Pairing.** Once per device pair, in the hub ("Connect AAC board"), when
+  there is a relay: this bundle's own (`bundle.config.json` `aac.relay`), or a
+  relay in the room serving the site (local play, below). In the room, the AAC
+  device taps the game in its "Games nearby" list and the hub asks "Allow?";
+  or it scans the hub's QR code; or someone types the 6-digit code. The
+  pairing is remembered until someone taps Disconnect or Forget. Nothing is
+  shared until the user turns sharing on in the AAC app, and the pairing
+  carries the bundle's words so the AAC app can share only those.
 - **Connection.** The relay link and same-site channels, reconnects, and a
   small "AAC" chip in the bottom-left while a board is sharing. Keep that
   corner free of important UI. A game opened while sharing is already on shows
@@ -131,10 +134,18 @@ It builds the site and starts the aac-bridge relay serving it, then prints two
 addresses:
 
 1. On the computer, open `http://localhost:8787/`, tap "Connect AAC board".
-2. On the AAC device (same Wi-Fi), open the printed
-   `http://<computer>:8787/aac-bridge/examples/aac-app.html`, type the code,
-   Connect, and turn sharing on. "Only the game's words" is on by default.
-3. Tap Done on the computer and open a game.
+   It shows a QR code and a 6-digit code, and waits.
+2. On the AAC device (same Wi-Fi), scan the QR code, or open the printed
+   `http://<computer>:8787/aac-bridge/examples/aac-app.html` and tap "AAC Game
+   Playground" under Games nearby.
+3. On the computer, tap Allow. (After scanning the QR, tap Connect on the AAC
+   device instead.)
+4. On the AAC device, turn sharing on. "Only the game's words" is on by
+   default. On the computer, tap Done and open a game.
+
+This happens once. Both devices and the relay remember the pairing (the relay
+in `~/.aac-bridge/relay-pairings.json`, token hashes only), so next time just
+run `npm run local`, open both pages and turn sharing on.
 
 Install and build once while online; after that it needs no internet. Allow
 Node.js on private networks if the firewall asks. Guest and school networks

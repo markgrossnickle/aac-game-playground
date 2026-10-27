@@ -37,6 +37,17 @@ export interface StoredPairing {
   listenerToken: string;
   expiresAt: number;
   appName?: string;
+  /** Kept until revoked: the relay slides its expiry on use, so do not expire it here. */
+  remembered?: boolean;
+}
+
+export interface RelayInfo {
+  /** The relay's base URL. */
+  relay: string;
+  /** A relay in the room (serving this site, with the example AAC page and game discovery). */
+  local: boolean;
+  /** How other devices on the Wi-Fi reach a local relay, best first. */
+  addresses: string[];
 }
 
 /** A relay serving this very site: local play (`npm run local`, aac-bridge relay `--serve`). */
@@ -48,15 +59,16 @@ function sameOrigin(): string | null {
   }
 }
 
-let relayLookup: Promise<string | null> | null = null;
+let relayLookup: Promise<RelayInfo | null> | null = null;
 
 /**
  * The relay to pair with: this bundle's configured relay (bundle.config.json
  * aac.relay), or, when the site itself is served by an aac-bridge relay on the
- * local network, that one. Null when there is neither.
+ * local network, that one (with discovery and its Wi-Fi addresses). Null when
+ * there is neither.
  */
-export function findRelay(): Promise<string | null> {
-  if (bundleConfig.aac.relay) return Promise.resolve(bundleConfig.aac.relay);
+export function findRelayInfo(): Promise<RelayInfo | null> {
+  if (bundleConfig.aac.relay) return Promise.resolve({ relay: bundleConfig.aac.relay, local: false, addresses: [] });
   relayLookup ??= (async () => {
     const origin = sameOrigin();
     // A relay in the room serves plain http on the local network. Skip the
@@ -65,13 +77,20 @@ export function findRelay(): Promise<string | null> {
     try {
       const res = await fetch(`${origin}/healthz`, { cache: "no-store", credentials: "omit" });
       if (!res.ok) return null;
-      const body = (await res.json()) as { relay?: string };
-      return body && body.relay === "aac-bridge" ? origin : null;
+      const body = (await res.json()) as { relay?: string; discovery?: boolean; addresses?: unknown };
+      if (!body || body.relay !== "aac-bridge") return null;
+      const addresses = Array.isArray(body.addresses) ? body.addresses.filter((a): a is string => typeof a === "string" && /^http:\/\//.test(a)) : [];
+      return { relay: origin, local: Boolean(body.discovery), addresses };
     } catch {
       return null;
     }
   })();
   return relayLookup;
+}
+
+/** The relay URL to pair with, or null. */
+export async function findRelay(): Promise<string | null> {
+  return (await findRelayInfo())?.relay ?? null;
 }
 
 /** The pairing the hub stored, if it is for this bundle's relay (or the local one) and not expired. */
@@ -82,7 +101,8 @@ export function readPairing(): StoredPairing | null {
     const p = JSON.parse(raw) as StoredPairing;
     if (!p || typeof p.listenerToken !== "string" || typeof p.relay !== "string") return null;
     const relayOk = p.relay === bundleConfig.aac.relay || p.relay === sameOrigin();
-    if (!relayOk || (p.expiresAt && p.expiresAt < Date.now())) {
+    const expired = !p.remembered && p.expiresAt && p.expiresAt < Date.now();
+    if (!relayOk || expired) {
       clearPairing();
       return null;
     }

@@ -7,8 +7,8 @@ acts on them. Everything ships as one web site, an installable PWA, and a thin
 Android app, and new games arrive on every device the next time it comes to
 the front.
 
-Live site: https://aac-game-playground.vercel.app (first deploy pending, see
-Status). Android installer: `/download` on the live site.
+Live site: https://aac-game-playground.vercel.app. Android installer:
+`/download` on the live site.
 
 **Anyone can contribute a game.** With Claude Code, describe the game and run
 `/new-game`; you get a pull request. Without it, follow
@@ -21,10 +21,13 @@ maintainer reviews (optionally asking Claude), plays it, merges and deploys.
 - Games declare their words in `game.json` and map each to an action with one
   SDK call, `playWithAac()`. Touch always works too.
 - The AAC connection uses the open
-  [aac-bridge](https://github.com/markgrossnickle/aac-bridge) protocol (pinned
-  to `v0.2.0`). A device pairs once in the hub with a one-time code typed into
-  the AAC app. Nothing is shared until the AAC user turns sharing on, and
-  nothing arrives after they turn it off.
+  [aac-bridge](https://github.com/markgrossnickle/aac-bridge) protocol
+  (0.3.0). A device pairs once in the hub with a one-time code typed into the
+  AAC app. Nothing is shared until the AAC user turns sharing on, nothing
+  arrives after they turn it off, and the AAC app can share only the games'
+  words.
+- **Local play, no internet:** `cd html && npm run local` serves the games and
+  a relay from a computer, and an AAC device on the same Wi-Fi drives them.
 - Every AAC game ships a gameplay test proving the words play it: start,
   play, replay, ignored words, duplicates, disconnects, sharing off. It runs
   locally with the smoke tests (`cd html && npm run build && npm run smoke`).
@@ -54,7 +57,7 @@ This bundle has its own hosting, created for it and used by nothing else:
 |---|---|
 | Web project | Vercel `aac-game-playground` -> https://aac-game-playground.vercel.app |
 | APK host | Vercel `aac-game-playground-apk` -> https://aac-game-playground-apk.vercel.app |
-| AAC relay | not deployed yet (`bundle.config.json` `aac.relay` is `null`) |
+| AAC relay | local play runs one on your computer (`npm run local`); no internet relay (`aac.relay` is `null`), by choice |
 
 Deploys refuse any other project (`tools/check-hosting.mjs`).
 
@@ -63,8 +66,8 @@ Deploys refuse any other project (`tools/check-hosting.mjs`).
 - Hosting projects exist, with one project-scoped token each. Deploys are
   started by hand from `main` (`gh workflow run deploy.yml`), per
   [docs/CI-BUDGET.md](docs/CI-BUDGET.md).
-- The AAC relay needs a host that keeps WebSockets open; until then games take
-  AAC words from the dev panel, tests and same-site pages.
-- No games yet. Be the first.
+- AAC pairing works in local play. The live site has no internet relay, so
+  there it takes AAC words only from same-site pages and the dev panel.
+- One game so far: Bubble Pop. Not yet tried with a real AAC device.
 
 Built from a private game bundle template. License: MIT.

@@ -52,17 +52,23 @@ everything a game author needs; the connection itself is the framework's job.
 
 ## What the framework handles
 
-- **Pairing.** Once per device, in the hub ("Connect AAC board"), when this
-  bundle has a relay (`bundle.config.json` `aac.relay`). The AAC app enters a
-  one-time code; nothing is shared until the user turns sharing on there.
+- **Pairing.** Once per device, in the hub ("Connect AAC board"), when there
+  is a relay: this bundle's own (`bundle.config.json` `aac.relay`), or a
+  relay in the room serving the site (local play, below). The AAC app enters a
+  one-time code; nothing is shared until the user turns sharing on there. The
+  pairing carries the bundle's words, so the AAC app can share only those.
 - **Connection.** The relay link and same-site channels, reconnects, and a
   small "AAC" chip in the bottom-left while a board is sharing. Keep that
-  corner free of important UI.
+  corner free of important UI. A game opened while sharing is already on shows
+  "connected" at once; an AAC app that turns sharing off, closes or loses its
+  network turns it off; a revoked pairing ends it, even though same-site
+  channels stay open.
 - **Matching.** Case, punctuation and spacing are ignored. Stable keys from
   the AAC app (for example `cboard.symbol.yes`) match across languages.
 - **Safety.** Duplicate messages act once. Words that arrive more than a few
   seconds late are dropped. Nothing is delivered after the AAC user stops
-  sharing. A revoked pairing ends cleanly.
+  sharing. A revoked pairing ends cleanly. No history of words is kept in
+  normal play; only the `?aac-test` hook records them.
 - **Development.** `npm run dev` shows a row of your words as buttons at the
   bottom of the page (the dev panel), so you can play by "board" without one.
 
@@ -103,11 +109,45 @@ node tools/check-games.mjs my-game
 cd html && npm run build && npm run smoke -- --grep my-game
 ```
 
-## Without a relay
+A second suite, `tests/aac-relay.spec.ts`, runs the framework against a REAL
+relay serving the build: the hub's pairing dialog (Done keeps the pairing,
+Cancel and Escape revoke it), a game opened while sharing is on, game-to-game
+navigation, sharing off, an AAC app vanishing, revocation, and the example AAC
+page pairing from a second browser. It uses the first AAC game in the build.
 
-Until `aac.relay` is set, the hub hides "Connect AAC board", and games still
-take words from the dev panel, from tests, and from AAC pages on the same site.
-A relay is a small Node server (`relay/` in
+## Local play: one Wi-Fi network, no internet
+
+An AAC device controls a game on a computer in the same room. Nothing goes
+over the internet.
+
+```bash
+cd html && npm ci && npm run local
+```
+
+It builds the site and starts the aac-bridge relay serving it, then prints two
+addresses:
+
+1. On the computer, open `http://localhost:8787/`, tap "Connect AAC board".
+2. On the AAC device (same Wi-Fi), open the printed
+   `http://<computer>:8787/aac-bridge/examples/aac-app.html`, type the code,
+   Connect, and turn sharing on. "Only the game's words" is on by default.
+3. Tap Done on the computer and open a game.
+
+Install and build once while online; after that it needs no internet. Allow
+Node.js on private networks if the firewall asks. Guest and school networks
+that keep devices apart will not work; a hotspot will. Details and limits:
+aac-bridge `docs/local-play.md`.
+
+Cboard and other AAC apps can use the same local relay once they support
+aac-bridge; an app served over `https` needs extra work to reach a local
+`http` address (see aac-bridge `docs/for-aac-apps.md`).
+
+## An internet relay (optional)
+
+`aac.relay` is `null` here, so the live site does not offer pairing. An
+internet relay is only needed for play across networks or with an AAC web app
+that cannot reach the local network. It is a small Node server (`relay/` in
 [aac-bridge](https://github.com/markgrossnickle/aac-bridge)) on a host that
 keeps WebSockets open; Vercel functions cannot. Deploy one for this bundle
-only, then set `"aac": { "relay": "https://..." }`.
+only, then set `"aac": { "relay": "https://..." }`. Tell users what leaves the
+room when they use it.

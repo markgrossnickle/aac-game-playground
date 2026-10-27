@@ -106,6 +106,7 @@ body {
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  align-content: start; /* the grid fills the page height; keep rows at their own size */
   gap: clamp(12px, 2.4vw, 24px);
   padding: 24px clamp(16px, 4vw, 40px);
   max-width: 1200px;

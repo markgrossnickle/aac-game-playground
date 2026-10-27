@@ -134,10 +134,12 @@ Protect `main` (public repository, or a paid GitHub plan):
 node tools/protect-main.mjs
 ```
 
-It adds a ruleset: changes only through pull requests, one code-owner review,
-the one CI job ("Checks and build") passing, no force pushes. Admins can merge a PR without the
-review (a sole maintainer cannot approve their own PR) but cannot push to
-`main` directly. Edit `.github/CODEOWNERS` to name the maintainers first.
+It adds a ruleset: changes only through pull requests, the one CI job
+("Checks and build") passing, no force pushes, and no direct pushes to
+`main`. It requires no approving review by default, because GitHub never lets
+an author approve their own PR and a sole maintainer could otherwise merge
+nothing. Once a second maintainer is in `.github/CODEOWNERS`, run it again
+with `--reviews 1` to require a code-owner approval.
 
 Claude review runs only when a maintainer comments `/claude-review` on a PR
 (including PRs from forks, which never receive secrets themselves). Leave the

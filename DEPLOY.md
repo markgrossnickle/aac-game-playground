@@ -51,7 +51,8 @@ app (docs/SPINOFF.md, "The one rule about hosting").
 Native gotchas that have bitten before:
 
 - `versionCode` must go UP or Android keeps the old shim and the reinstall looks
-  like it did nothing. The workflow bumps it and commits the bump.
+  like it did nothing. The workflow bumps it and pushes the bump as a branch;
+  merge its PR (link in the run summary) so the next build counts up from there.
 - A shim built without `npx cap sync android` has an empty
   `assets/capacitor.plugins.json`, so every plugin call (the hold-to-exit button,
   the app-resume update check) silently does nothing. The workflow refuses to
@@ -74,7 +75,8 @@ tools/verify-live.sh <buildId>  # the id the deploy run printed
 
 Native change: after step 3, Actions > Shim APK > Run workflow (publish = true).
 It builds, checks the APK, publishes it to the APK host, verifies both URLs
-serve the new size, and commits the `versionCode` bump.
+serve the new size, and pushes the `versionCode` bump as a branch. Open and
+merge its PR from the link in the run summary.
 
 ## VERIFY at the real URL
 

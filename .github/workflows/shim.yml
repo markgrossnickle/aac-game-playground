@@ -8,7 +8,8 @@ name: Shim APK
 #
 # Secrets (docs/SPINOFF.md): environment "production": VERCEL_APK_TOKEN, a token
 # scoped to the APK host project only; repository: VERCEL_ORG_ID, VERCEL_APK_PROJECT_ID.
-# The versionCode bump arrives as a pull request (main is protected).
+# The versionCode bump is pushed as a branch; open its PR from the link in the
+# run summary (main is protected, and Actions may not open PRs here).
 # Optional release signing: ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD,
 # ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD. Without them a debug-signed APK is
 # built (fine for side-loading; the same key must be used for every update).
@@ -163,7 +164,7 @@ jobs:
           CL2=$(curl -sIL "$WEB_URL/games.apk?cb=x" | grep -i '^content-length' | tail -1 | grep -oE '[0-9]+' || true)
           [ "$CL2" = "$SIZE" ] || echo "::warning::$WEB_URL/games.apk redirect resolves to '$CL2' bytes; check vercel.json redirects and that the web deploy is live"
 
-      - name: Open a PR with the versionCode bump (main is protected)
+      - name: Push the versionCode bump for a PR (main is protected)
         if: ${{ inputs.publish && steps.secrets.outputs.ok == 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
@@ -176,7 +177,12 @@ jobs:
           git add android/app/build.gradle
           git commit -m "shim: bump versionCode to $VC (published)"
           git push origin "$BRANCH"
-          gh pr create --base main --head "$BRANCH" --title "shim: versionCode $VC" --body "The shim with versionCode $VC is live at /games.apk. Merge so the next shim build counts up from here."
+          if ! gh pr create --base main --head "$BRANCH" --title "shim: versionCode $VC" --body "The shim with versionCode $VC is live at /games.apk. Merge so the next shim build counts up from here." 2>pr-error.txt; then
+            # Usual case: the repo does not let Actions open PRs (kept off on purpose,
+            # since the same setting lets workflows approve PRs).
+            cat pr-error.txt
+            echo "::notice::The APK is live. Open the versionCode PR: ${{ github.server_url }}/${{ github.repository }}/compare/main...$BRANCH?expand=1"
+          fi
 
       - name: Not published
         if: ${{ !(inputs.publish && steps.secrets.outputs.ok == 'true') }}

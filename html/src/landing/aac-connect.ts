@@ -36,13 +36,22 @@ export async function initAacConnect(): Promise<void> {
   header.appendChild(btn);
 
   let watcher: ReturnType<typeof createAacListener> | null = null;
-  // A pairing that is waiting for the AAC app. Closing the dialog any way
-  // (Cancel, Escape) before it is confirmed revokes it.
-  let pending: { token: string; confirmed: boolean } | null = null;
+  // The pairing attempt in progress, from the moment the code is requested.
+  // Closing the dialog any way (Cancel, Escape) before the AAC app confirms
+  // abandons it: a pairing that already exists is revoked, and one still being
+  // requested is revoked as soon as the relay answers, never saved.
+  interface Attempt {
+    token: string | null;
+    confirmed: boolean;
+    cancelled: boolean;
+  }
+  let pending: Attempt | null = null;
   const abandonPending = (): void => {
     const p = pending;
     pending = null;
     if (!p || p.confirmed) return;
+    p.cancelled = true;
+    if (!p.token) return; // still being requested; startPairing cleans up when it lands
     clearPairing();
     void revokePairing({ relay, token: p.token }).catch(() => {});
   };
@@ -89,12 +98,23 @@ export async function initAacConnect(): Promise<void> {
   };
 
   const startPairing = async (): Promise<void> => {
-    dialog.replaceChildren(el("h2", "", "Connect an AAC board"), el("p", "", "Getting a code…"));
+    abandonPending(); // a previous attempt, if any, is superseded
+    const mine: Attempt = { token: null, confirmed: false, cancelled: false };
+    pending = mine;
+    const cancelLoading = el("button", "aac-btn", "Cancel");
+    cancelLoading.type = "button";
+    cancelLoading.addEventListener("click", () => {
+      abandonPending();
+      close();
+    });
+    dialog.replaceChildren(el("h2", "", "Connect an AAC board"), el("p", "", "Getting a code…"), cancelLoading);
     if (!dialog.open) dialog.showModal();
     let pairing;
     try {
       pairing = await createPairing({ relay, vocabulary: bundleWords() });
     } catch (err) {
+      if (mine.cancelled) return;
+      if (pending === mine) pending = null;
       dialog.replaceChildren(el("h2", "", "Could not connect"), el("p", "", `The pairing service did not answer (${(err as Error).message}). Check the connection and try again.`));
       const ok = el("button", "aac-btn", "Close");
       ok.type = "button";
@@ -102,6 +122,13 @@ export async function initAacConnect(): Promise<void> {
       dialog.append(ok);
       return;
     }
+    if (mine.cancelled || pending !== mine) {
+      // Closed (or restarted) while the code was being requested: the relay
+      // made a pairing nobody will use. Revoke it; save and watch nothing.
+      void revokePairing({ relay, token: pairing.listenerToken }).catch(() => {});
+      return;
+    }
+    mine.token = pairing.listenerToken;
     writePairing({ relay, listenerToken: pairing.listenerToken, expiresAt: pairing.expiresAt });
     const code = `${pairing.code.slice(0, 3)} ${pairing.code.slice(3)}`;
     const status = el("p", "aac-status", "Waiting for the AAC app…");
@@ -115,8 +142,6 @@ export async function initAacConnect(): Promise<void> {
 
     // One button, one handler. Before the AAC app connects it is Cancel and
     // revokes the half-made pairing; after, it is Done and keeps it.
-    const mine = { token: pairing.listenerToken, confirmed: false };
-    pending = mine;
     const action = el("button", "aac-btn", "Cancel");
     action.type = "button";
     action.addEventListener("click", () => {

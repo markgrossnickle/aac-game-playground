@@ -68,6 +68,6 @@ Deploys refuse any other project (`tools/check-hosting.mjs`).
   [docs/CI-BUDGET.md](docs/CI-BUDGET.md).
 - AAC pairing works in local play. The live site has no internet relay, so
   there it takes AAC words only from same-site pages and the dev panel.
-- No games yet. Be the first.
+- One game so far: Bubble Pop. Not yet tried with a real AAC device.
 
 Built from a private game bundle template. License: MIT.

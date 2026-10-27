@@ -1,14 +1,17 @@
 // "Connect AAC board" in the hub: pair this device with an AAC app once, and
-// every AAC game picks the pairing up. Shown only when bundle.config.json has
-// an aac.relay (this bundle's own aac-bridge relay).
+// every AAC game picks the pairing up. Shown when there is a relay to pair
+// through: this bundle's own aac-bridge relay (bundle.config.json aac.relay),
+// or a relay on the local network that serves this site (local play,
+// `npm run local`).
 //
 // Flow: tap Connect -> the relay issues a one-time 6-digit code -> the player
 // or a grown-up types it into the AAC app's "share with a game" setting -> the
-// AAC app starts sharing -> "Connected". Disconnect revokes the pairing on the
-// relay, so neither side's token works again.
+// AAC app starts sharing -> "Connected", Done. Cancel before that revokes the
+// half-made pairing; Disconnect later revokes it on the relay, so neither
+// side's token works again.
 import { createAacListener, createPairing, relayTransport, revokePairing } from "aac-bridge";
-import bundleConfig from "virtual:bundle-config";
-import { clearPairing, readPairing, writePairing } from "../sdk/aac";
+import vocabularies from "virtual:aac-vocabularies";
+import { clearPairing, findRelay, readPairing, writePairing } from "../sdk/aac";
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: string): HTMLElementTagNameMap[K] {
   const e = document.createElement(tag);
@@ -17,16 +20,32 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: 
   return e;
 }
 
-export function initAacConnect(): void {
-  const relay = bundleConfig.aac.relay;
+/** Every word the bundle's games understand, so the AAC app can share only those. */
+function bundleWords(): Array<string | { word: string; synonyms?: string[] }> {
+  return Object.values(vocabularies).flat();
+}
+
+export async function initAacConnect(): Promise<void> {
   const header = document.querySelector(".hdr");
-  if (!relay || !header) return;
+  if (!header) return;
+  const relay = await findRelay();
+  if (!relay) return;
 
   const btn = el("button", "aac-connect");
   btn.type = "button";
   header.appendChild(btn);
 
   let watcher: ReturnType<typeof createAacListener> | null = null;
+  // A pairing that is waiting for the AAC app. Closing the dialog any way
+  // (Cancel, Escape) before it is confirmed revokes it.
+  let pending: { token: string; confirmed: boolean } | null = null;
+  const abandonPending = (): void => {
+    const p = pending;
+    pending = null;
+    if (!p || p.confirmed) return;
+    clearPairing();
+    void revokePairing({ relay, token: p.token }).catch(() => {});
+  };
 
   const render = (): void => {
     const p = readPairing();
@@ -58,7 +77,7 @@ export function initAacConnect(): void {
     disconnect.addEventListener("click", async () => {
       const cur = readPairing();
       clearPairing();
-      if (cur) await revokePairing({ relay, token: cur.listenerToken }).catch(() => {});
+      if (cur) await revokePairing({ relay: cur.relay, token: cur.listenerToken }).catch(() => {});
       close();
     });
     const done = el("button", "aac-btn", "Done");
@@ -74,9 +93,9 @@ export function initAacConnect(): void {
     if (!dialog.open) dialog.showModal();
     let pairing;
     try {
-      pairing = await createPairing({ relay });
+      pairing = await createPairing({ relay, vocabulary: bundleWords() });
     } catch (err) {
-      dialog.replaceChildren(el("h2", "", "Could not connect"), el("p", "", `The pairing service did not answer (${(err as Error).message}). Check the internet connection and try again.`));
+      dialog.replaceChildren(el("h2", "", "Could not connect"), el("p", "", `The pairing service did not answer (${(err as Error).message}). Check the connection and try again.`));
       const ok = el("button", "aac-btn", "Close");
       ok.type = "button";
       ok.addEventListener("click", close);
@@ -93,30 +112,35 @@ export function initAacConnect(): void {
       el("p", "aac-hint", "The code works once, for 10 minutes."),
       status,
     );
-    const cancel = el("button", "aac-btn", "Cancel");
-    cancel.type = "button";
-    cancel.addEventListener("click", async () => {
-      clearPairing();
-      await revokePairing({ relay, token: pairing.listenerToken }).catch(() => {});
+
+    // One button, one handler. Before the AAC app connects it is Cancel and
+    // revokes the half-made pairing; after, it is Done and keeps it.
+    const mine = { token: pairing.listenerToken, confirmed: false };
+    pending = mine;
+    const action = el("button", "aac-btn", "Cancel");
+    action.type = "button";
+    action.addEventListener("click", () => {
+      abandonPending();
       close();
     });
-    dialog.append(cancel);
+    dialog.append(action);
 
     // Watch for the AAC app to start sharing, then confirm.
     watcher = createAacListener({ transport: relayTransport({ relay, token: pairing.listenerToken }) });
     watcher.on("hello", ({ source }) => {
+      if (mine.confirmed) return;
+      mine.confirmed = true;
       writePairing({ relay, listenerToken: pairing.listenerToken, expiresAt: pairing.expiresAt, appName: source.app });
       status.textContent = `Connected to ${source.app}.`;
-      cancel.textContent = "Done";
-      cancel.onclick = (ev) => {
-        ev.stopImmediatePropagation();
-        close();
-      };
+      action.textContent = "Done";
     });
-    watcher.on("status", ({ state }) => {
-      if (state === "revoked" || state === "unauthorized") {
+    watcher.on("status", () => {
+      const s = watcher?.statusOf("relay");
+      if (s === "revoked" || s === "unauthorized") {
+        if (pending === mine) pending = null;
         clearPairing();
         status.textContent = "The code expired. Close and try again.";
+        action.textContent = "Close";
       }
     });
   };
@@ -128,6 +152,7 @@ export function initAacConnect(): void {
     } else void startPairing();
   });
   dialog.addEventListener("close", () => {
+    abandonPending();
     watcher?.close();
     watcher = null;
     render();

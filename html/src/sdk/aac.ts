@@ -59,7 +59,9 @@ export function findRelay(): Promise<string | null> {
   if (bundleConfig.aac.relay) return Promise.resolve(bundleConfig.aac.relay);
   relayLookup ??= (async () => {
     const origin = sameOrigin();
-    if (!origin) return null;
+    // A relay in the room serves plain http on the local network. Skip the
+    // probe on https (the live site), where it would only log a 404.
+    if (!origin || location.protocol !== "http:") return null;
     try {
       const res = await fetch(`${origin}/healthz`, { cache: "no-store", credentials: "omit" });
       if (!res.ok) return null;

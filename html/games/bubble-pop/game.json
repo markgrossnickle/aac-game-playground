@@ -1,0 +1,34 @@
+{
+  "$schema": "../../../schemas/game.schema.json",
+  "id": "bubble-pop",
+  "title": "Bubble Pop",
+  "icon": {
+    "emoji": "🫧"
+  },
+  "players": 1,
+  "orientation": "any",
+  "ages": "3-7",
+  "addedOn": "2026-10-27",
+  "authors": [
+    "markgrossnickle"
+  ],
+  "description": "Pop colourful floating bubbles by touch or with words from an AAC board.",
+  "input": [
+    "touch",
+    "aac"
+  ],
+  "aac": {
+    "vocabulary": [
+      { "word": "go", "synonyms": ["start", "play"] },
+      { "word": "pop", "synonyms": ["burst"] },
+      "more",
+      "red",
+      "blue",
+      "green",
+      "yellow",
+      "big",
+      "stop",
+      "again"
+    ]
+  }
+}
